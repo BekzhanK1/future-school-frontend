@@ -16,6 +16,7 @@ interface ResourceFormProps extends FormCallbacks {
         title?: string;
         url?: string;
         type?: ResourceType;
+        is_visible_to_students?: boolean;
     };
 }
 
@@ -35,6 +36,7 @@ export default function ResourceForm({
         title: initialData?.title || '',
         url: initialData?.url || '',
         type: initialData?.type || 'file',
+        is_visible_to_students: initialData?.is_visible_to_students ?? true,
         file: null,
         files: [],
     });
@@ -50,12 +52,15 @@ export default function ResourceForm({
         if (!resourceId) return;
         setIsLoading(true);
         try {
-            const response = await axiosInstance.get(`/resources/${resourceId}/`);
+            const response = await axiosInstance.get(
+                `/resources/${resourceId}/`
+            );
             const resource = response.data;
             setResourceForm({
                 title: resource.title || '',
                 url: resource.url || '',
                 type: resource.type || 'file',
+                is_visible_to_students: resource.is_visible_to_students ?? true,
                 file: null,
                 files: [],
             });
@@ -95,6 +100,10 @@ export default function ResourceForm({
                     const formData = new FormData();
                     formData.append('type', resourceForm.type);
                     formData.append('title', resourceForm.title);
+                    formData.append(
+                        'is_visible_to_students',
+                        String(resourceForm.is_visible_to_students)
+                    );
                     formData.append('file', resourceForm.file);
                     if (resourceForm.url) {
                         formData.append('url', resourceForm.url);
@@ -114,6 +123,8 @@ export default function ResourceForm({
                     const resourceData: any = {
                         type: resourceForm.type,
                         title: resourceForm.title,
+                        is_visible_to_students:
+                            resourceForm.is_visible_to_students,
                     };
                     if (resourceForm.url) {
                         resourceData.url = resourceForm.url;
@@ -133,8 +144,15 @@ export default function ResourceForm({
                 ) {
                     // Handle directory with multiple files
                     const formData = new FormData();
-                    formData.append('course_section', courseSectionId.toString());
+                    formData.append(
+                        'course_section',
+                        courseSectionId.toString()
+                    );
                     formData.append('title', resourceForm.title);
+                    formData.append(
+                        'is_visible_to_students',
+                        String(resourceForm.is_visible_to_students)
+                    );
 
                     resourceForm.files.forEach(file => {
                         formData.append('files', file);
@@ -155,16 +173,27 @@ export default function ResourceForm({
                 ) {
                     // Handle single file upload
                     const formData = new FormData();
-                    formData.append('course_section', courseSectionId.toString());
+                    formData.append(
+                        'course_section',
+                        courseSectionId.toString()
+                    );
                     formData.append('type', resourceForm.type);
                     formData.append('title', resourceForm.title);
+                    formData.append(
+                        'is_visible_to_students',
+                        String(resourceForm.is_visible_to_students)
+                    );
                     formData.append('file', resourceForm.file);
 
-                    response = await axiosInstance.post('/resources/', formData, {
-                        headers: {
-                            'Content-Type': 'multipart/form-data',
-                        },
-                    });
+                    response = await axiosInstance.post(
+                        '/resources/',
+                        formData,
+                        {
+                            headers: {
+                                'Content-Type': 'multipart/form-data',
+                            },
+                        }
+                    );
                 } else {
                     // Handle regular resource (link, text, directory without files)
                     const resourceData = {
@@ -172,6 +201,8 @@ export default function ResourceForm({
                         type: resourceForm.type,
                         title: resourceForm.title,
                         url: resourceForm.url,
+                        is_visible_to_students:
+                            resourceForm.is_visible_to_students,
                     };
 
                     response = await axiosInstance.post(
@@ -181,21 +212,27 @@ export default function ResourceForm({
                 }
             }
 
-            console.log(`Resource ${isEditMode ? 'updated' : 'created'} successfully:`, response.data);
+            console.log(
+                `Resource ${isEditMode ? 'updated' : 'created'} successfully:`,
+                response.data
+            );
             onSuccess(
                 isEditMode
-                    ? t('courseSectionModal.resourceUpdatedSuccess') || 'Ресурс успешно обновлен'
+                    ? t('courseSectionModal.resourceUpdatedSuccess') ||
+                          'Ресурс успешно обновлен'
                     : t('courseSectionModal.resourceCreatedSuccess')
             );
             setTimeout(() => {
                 onComplete();
             }, 1500);
         } catch (error: unknown) {
-            console.error(`Error ${isEditMode ? 'updating' : 'creating'} resource:`, error);
+            console.error(
+                `Error ${isEditMode ? 'updating' : 'creating'} resource:`,
+                error
+            );
             const errorMessage =
                 error instanceof AxiosError
-                    ? error?.formattedMessage ||
-                      error.response?.data?.message ||
+                    ? error.response?.data?.message ||
                       error.response?.data?.error ||
                       error.message
                     : isEditMode
@@ -621,6 +658,28 @@ export default function ResourceForm({
                     </div>
                 </div>
             )}
+
+            {/* Visibility Toggle */}
+            <div className="flex items-center mt-4">
+                <input
+                    type="checkbox"
+                    id="is_visible_to_students"
+                    checked={resourceForm.is_visible_to_students !== false}
+                    onChange={e =>
+                        setResourceForm(prev => ({
+                            ...prev,
+                            is_visible_to_students: e.target.checked,
+                        }))
+                    }
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label
+                    htmlFor="is_visible_to_students"
+                    className="ml-2 block text-sm text-gray-900"
+                >
+                    Видимо для учеников
+                </label>
+            </div>
 
             {/* Submit Button */}
             <div className="flex justify-end space-x-3 pt-4">

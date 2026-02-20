@@ -16,6 +16,7 @@ interface UserData {
     school?: number | null;
     is_active: boolean;
     kundelik_id?: string | null;
+    iin?: string | null;
 }
 
 interface School {
@@ -52,6 +53,7 @@ export default function UserModal({
         role: 'student' as const,
         school: 0,
         kundelik_id: '',
+        iin: '',
     });
 
     useEffect(() => {
@@ -88,6 +90,7 @@ export default function UserModal({
                 role: user.role,
                 school: user.school || 0,
                 kundelik_id: user.kundelik_id || '',
+                iin: user.iin || '',
             });
         } else if (isOpen) {
             setFormData({
@@ -101,6 +104,7 @@ export default function UserModal({
                 role: 'student',
                 school: 0,
                 kundelik_id: '',
+                iin: '',
             });
         }
     }, [user, isOpen]);
@@ -168,6 +172,10 @@ export default function UserModal({
 
         if (formData.kundelik_id.trim()) {
             submitData.kundelik_id = formData.kundelik_id.trim();
+        }
+
+        if (formData.iin.trim()) {
+            submitData.iin = formData.iin.trim();
         }
 
         // Only include password fields for new users or if password is being changed
@@ -407,6 +415,23 @@ export default function UserModal({
                             onChange={handleChange}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="Kundelik ID"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            ИИН
+                        </label>
+                        <input
+                            type="text"
+                            name="iin"
+                            value={formData.iin}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="12-значный ИИН"
+                            maxLength={12}
                         />
                     </div>
                 </div>

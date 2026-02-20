@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
     ArrowLeft,
@@ -10,11 +10,18 @@ import {
     Send,
     User,
     MessageSquare,
+    Paperclip,
+    X,
 } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { getMediaUrl } from '@/lib/mediaUrl';
 import { useUserState } from '@/contexts/UserContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import ForumPostItem from '@/components/ForumPostItem';
+
+const FORUM_MAX_FILES = 10;
+const FORUM_MAX_SIZE_MB = 10;
+const FORUM_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.bmp,.svg,.pdf,.doc,.docx,.xls,.xlsx,.txt,.odt,.ods,.csv,.ppt,.pptx';
 
 interface ForumPost {
     id: number;
@@ -24,6 +31,8 @@ interface ForumPost {
     author_first_name: string;
     author_last_name: string;
     content: string;
+    file?: string | null;
+    attachments?: { id: number | null; file: string | null; position: number }[];
     is_answer: boolean;
     parent_post?: number | null;
     replies?: ForumPost[];
@@ -56,8 +65,12 @@ export default function QADetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [answerContent, setAnswerContent] = useState('');
+    const [answerFiles, setAnswerFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
-    const [replyingToPostId, setReplyingToPostId] = useState<number | null>(null);
+    const answerFileInputRef = useRef<HTMLInputElement>(null);
+    const [replyingToPostId, setReplyingToPostId] = useState<number | null>(
+        null
+    );
     const [replyingToAuthor, setReplyingToAuthor] = useState<string>('');
     const [replyingToContent, setReplyingToContent] = useState<string>('');
 
@@ -86,21 +99,48 @@ export default function QADetailPage() {
         }
     };
 
+    const validateAnswerFiles = (files: File[]): string | null => {
+        if (files.length > FORUM_MAX_FILES) return `Максимум ${FORUM_MAX_FILES} файлов`;
+        const maxBytes = FORUM_MAX_SIZE_MB * 1024 * 1024;
+        for (const f of files) {
+            if (f.size > maxBytes) return `Файл "${f.name}" больше ${FORUM_MAX_SIZE_MB} МБ`;
+        }
+        return null;
+    };
+
     const handleSubmitAnswer = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!answerContent.trim()) {
+        if (!answerContent.trim()) return;
+        const fileErr = validateAnswerFiles(answerFiles);
+        if (fileErr) {
+            alert(fileErr);
             return;
         }
 
         try {
             setSubmitting(true);
-            await axiosInstance.post('/forum/posts/', {
-                thread: parseInt(qaId),
-                content: answerContent,
-                is_answer: user?.role === 'teacher',
-                parent_post: replyingToPostId || undefined,
-            });
+
+            if (answerFiles.length > 0) {
+                const formData = new FormData();
+                formData.append('thread', qaId);
+                formData.append('content', answerContent);
+                formData.append('is_answer', String(user?.role === 'teacher'));
+                if (replyingToPostId) formData.append('parent_post', String(replyingToPostId));
+                answerFiles.forEach(f => formData.append('files', f));
+                await axiosInstance.post('/forum/posts/', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+            } else {
+                await axiosInstance.post('/forum/posts/', {
+                    thread: parseInt(qaId),
+                    content: answerContent,
+                    is_answer: user?.role === 'teacher',
+                    parent_post: replyingToPostId || undefined,
+                });
+            }
+
             setAnswerContent('');
+            setAnswerFiles([]);
             setReplyingToPostId(null);
             setReplyingToAuthor('');
             setReplyingToContent('');
@@ -141,7 +181,11 @@ export default function QADetailPage() {
         });
     };
 
-    const handleReplyClick = (postId: number, authorUsername: string, content: string) => {
+    const handleReplyClick = (
+        postId: number,
+        authorUsername: string,
+        content: string
+    ) => {
         setReplyingToPostId(postId);
         setReplyingToAuthor(authorUsername);
         setReplyingToContent(content);
@@ -226,11 +270,12 @@ export default function QADetailPage() {
                         <Clock className="w-4 h-4" />
                         <span>{formatDate(thread.created_at)}</span>
                     </div>
-                    {thread.type === 'announcement' && !thread.allow_replies && (
-                        <div className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded inline-block mt-2">
-                            Комментарии отключены
-                        </div>
-                    )}
+                    {thread.type === 'announcement' &&
+                        !thread.allow_replies && (
+                            <div className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded inline-block mt-2">
+                                Комментарии отключены
+                            </div>
+                        )}
                 </div>
 
                 {questionPost && (
@@ -238,6 +283,24 @@ export default function QADetailPage() {
                         <p className="text-gray-800 whitespace-pre-wrap">
                             {questionPost.content}
                         </p>
+                        {(questionPost.attachments?.length || questionPost.file) && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {(questionPost.attachments ?? (questionPost.file ? [{ id: null, file: questionPost.file, position: 0 }] : [])).map((att: { id: number | null; file: string | null }, i: number) => (
+                                    att.file && (
+                                        <a
+                                            key={att.id ?? i}
+                                            href={getMediaUrl(att.file)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-blue-600 hover:bg-gray-50"
+                                        >
+                                            <Paperclip className="w-4 h-4 flex-shrink-0" />
+                                            {att.file.split('/').pop()?.split('?')[0] || 'Файл'}
+                                        </a>
+                                    )
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -293,7 +356,8 @@ export default function QADetailPage() {
                             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
                                 <div className="flex-1">
                                     <p className="text-sm text-blue-800">
-                                        Ты отвечаешь на пост от <strong>{replyingToAuthor}</strong>
+                                        Ты отвечаешь на пост от{' '}
+                                        <strong>{replyingToAuthor}</strong>
                                     </p>
                                     <p className="text-xs text-blue-700 mt-1 line-clamp-2">
                                         "{replyingToContent}"
@@ -320,7 +384,57 @@ export default function QADetailPage() {
                             placeholder={t('qa.answerPlaceholder')}
                             required
                         />
-                        <div className="flex justify-end">
+
+                        {/* Multiple file attachments */}
+                        {answerFiles.length > 0 && (
+                            <div className="mb-4 flex flex-wrap gap-2">
+                                {answerFiles.map((file, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+                                    >
+                                        <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <span className="truncate max-w-[160px]">{file.name}</span>
+                                        <span className="text-xs text-gray-400 flex-shrink-0">
+                                            ({(file.size / 1024).toFixed(1)} KB)
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAnswerFiles(prev => prev.filter((_, i) => i !== idx))}
+                                            className="p-1 text-gray-400 hover:text-red-500"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex justify-between items-center flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    ref={answerFileInputRef}
+                                    type="file"
+                                    multiple
+                                    accept={FORUM_ACCEPT}
+                                    className="hidden"
+                                    onChange={e => {
+                                        const chosen = e.target.files ? Array.from(e.target.files) : [];
+                                        setAnswerFiles(prev => [...prev, ...chosen].slice(0, FORUM_MAX_FILES));
+                                        e.target.value = '';
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => answerFileInputRef.current?.click()}
+                                    className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium"
+                                >
+                                    <Paperclip className="w-4 h-4" />
+                                    {t('forms.file') || 'Прикрепить файл'}
+                                    {answerFiles.length > 0 && ` (${answerFiles.length}/${FORUM_MAX_FILES})`}
+                                </button>
+                            </div>
+
                             <button
                                 type="submit"
                                 disabled={submitting || !answerContent.trim()}

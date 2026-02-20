@@ -112,7 +112,11 @@ export default function NotificationsPage() {
         if (notification.related_test) {
             return `/tests/${notification.related_test}`;
         }
-        if (notification.related_forum_thread && notification.related_forum_thread_subject_group) {
+        if (notification.related_forum_thread) {
+            // Личное сообщение (direct_message) — без subject_group, открываем в /messages
+            if (!notification.related_forum_thread_subject_group) {
+                return `/messages/${notification.related_forum_thread}`;
+            }
             return `/subjects/${notification.related_forum_thread_subject_group}/qa/${notification.related_forum_thread}`;
         }
         return null;
@@ -131,6 +135,8 @@ export default function NotificationsPage() {
             case 'forum_reply':
             case 'forum_mention':
             case 'forum_resolved':
+            case 'forum_direct_message':
+            case 'forum_announcement':
                 return '💬';
             default:
                 return '🔔';

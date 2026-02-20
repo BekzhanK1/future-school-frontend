@@ -139,6 +139,11 @@ export default function BulkCreateSubjectGroupsModal({
             return;
         }
 
+        if (selectedTeachers.length === 0) {
+            setError('Выберите хотя бы одного учителя');
+            return;
+        }
+
         setLoading(true);
         setError(null);
         setResult(null);
@@ -344,10 +349,10 @@ export default function BulkCreateSubjectGroupsModal({
                         </div>
                     </div>
 
-                    {/* Teachers Selection (Optional) */}
+                    {/* Teachers Selection (Required) */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Учителя (опционально)
+                            Учителя <span className="text-red-500">*</span>
                             <span className="text-sm text-gray-500 ml-2">
                                 ({selectedTeachers.length} выбрано)
                             </span>
@@ -385,9 +390,6 @@ export default function BulkCreateSubjectGroupsModal({
                                 </div>
                             )}
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                            Если учителя не выбраны, SubjectGroup будет создан без привязки к учителю
-                        </p>
                     </div>
 
                     {/* Preview */}
@@ -532,7 +534,8 @@ export default function BulkCreateSubjectGroupsModal({
                                 loading ||
                                 loadingData ||
                                 selectedCourses.length === 0 ||
-                                selectedClassrooms.length === 0
+                                selectedClassrooms.length === 0 ||
+                                selectedTeachers.length === 0
                             }
                             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >

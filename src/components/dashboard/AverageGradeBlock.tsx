@@ -65,16 +65,34 @@ export default function AverageGradeBlock() {
 
     return (
         <div className="w-full bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 py-4 flex items-center justify-between gap-4">
+            <div className="px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h2 className="text-lg font-semibold text-gray-900">
                     {t('profile.averageGrade')}
                 </h2>
                 <div className="flex items-center gap-3 text-gray-700">
-                    <span className="text-2xl sm:text-3xl font-bold tabular-nums">{averageGradeDisplay}</span>
+                    {scale === '10' && rawAverageGrade != null ? (
+                        <div className="flex flex-col items-end gap-1">
+                            <span className="text-2xl sm:text-3xl font-bold tabular-nums">{averageGradeDisplay}</span>
+                            <div className="flex gap-1 mt-1">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className={`h-2 w-3 sm:w-4 rounded-sm transition-colors ${
+                                            i < Math.round((rawAverageGrade / 100) * 10)
+                                                ? 'bg-purple-600'
+                                                : 'bg-gray-200'
+                                        }`}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <span className="text-2xl sm:text-3xl font-bold tabular-nums">{averageGradeDisplay}</span>
+                    )}
                     <select
                         value={scale}
                         onChange={e => setScale(e.target.value as 'percent' | '5' | '10')}
-                        className="border border-gray-300 rounded px-2 py-1.5 text-base bg-white"
+                        className="border border-gray-300 rounded px-2 py-1.5 text-base bg-white ml-2 self-start sm:self-auto"
                     >
                         <option value="percent">%</option>
                         <option value="5">/5</option>

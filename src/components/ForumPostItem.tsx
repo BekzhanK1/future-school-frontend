@@ -1,8 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, User, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Clock, User, ChevronDown, ChevronRight, Plus, FileText, ImageIcon, Paperclip } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { getMediaUrl } from '@/lib/mediaUrl';
+
+interface ForumAttachment {
+    id: number | null;
+    file: string | null;
+    position: number;
+    legacy?: boolean;
+}
 
 interface ForumPost {
     id: number;
@@ -12,6 +20,8 @@ interface ForumPost {
     author_first_name: string;
     author_last_name: string;
     content: string;
+    file?: string | null;
+    attachments?: ForumAttachment[];
     is_answer: boolean;
     parent_post?: number | null;
     replies?: ForumPost[];
@@ -48,6 +58,13 @@ export default function ForumPostItem({
     const [isLoadingReaction, setIsLoadingReaction] = useState(false);
 
     const hasReplies = post.replies && post.replies.length > 0;
+
+    // Check if the file is an image
+    const isImageFile = (url: string | null | undefined) => {
+        if (!url) return false;
+        const lowercaseUrl = url.toLowerCase();
+        return lowercaseUrl.match(/\.(jpeg|jpg|gif|png|webp|svg)$/) != null;
+    };
 
     const handleReaction = async (emoji: string) => {
         setIsLoadingReaction(true);
@@ -150,6 +167,43 @@ export default function ForumPostItem({
                         <p className="text-gray-800 whitespace-pre-wrap text-sm mb-3">
                             {post.content}
                         </p>
+
+                        {/* File Attachments: use attachments array (includes legacy single file) */}
+                        {(post.attachments && post.attachments.length > 0 ? post.attachments : post.file ? [{ id: null, file: post.file, position: 0, legacy: true }] : []).map((att, idx) => {
+                            const mediaUrl = att.file ? getMediaUrl(att.file) : '';
+                            return (
+                            <div key={att.id ?? `legacy-${idx}`} className="mb-3 overflow-hidden rounded-lg border border-gray-200">
+                                {mediaUrl && isImageFile(att.file) ? (
+                                    <div className="max-w-md">
+                                        <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={mediaUrl}
+                                                alt="Attached image"
+                                                className="w-full h-auto object-cover max-h-96"
+                                            />
+                                        </a>
+                                    </div>
+                                ) : mediaUrl ? (
+                                    <a
+                                        href={mediaUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                    >
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                            <FileText className="w-5 h-5 text-blue-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 truncate">
+                                                {att.file.split('/').pop()?.split('?')[0] || 'Attached File'}
+                                            </p>
+                                            <p className="text-xs text-blue-600">Скачать</p>
+                                        </div>
+                                    </a>
+                                ) : null}
+                            </div>
+                        );})}
 
                         {/* Reactions Bar - Telegram style */}
                         <div className="mb-3 flex flex-wrap items-center gap-2">

@@ -762,23 +762,71 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                 ? new Date(test.end_date)
                 : new Date(testDate.getTime() + 60 * 60 * 1000); // Default 1 hour duration
 
-            events.push({
-                id: `test-${test.id}`,
-                title: test.title,
-                start: test.start_date,
-                end: endDate.toISOString(),
-                backgroundColor: 'rgb(224, 242, 254)',
-                borderColor: 'rgb(224, 242, 254)',
-                textColor: '#374151',
-                display: 'auto',
-                extendedProps: {
-                    description: test.description || '',
-                    subject: test.course_name,
-                    teacher: test.teacher_username,
-                    time: testTime,
-                    type: 'test',
-                },
-            });
+            const isSameDay = 
+                testDate.getDate() === endDate.getDate() &&
+                testDate.getMonth() === endDate.getMonth() &&
+                testDate.getFullYear() === endDate.getFullYear();
+
+            if (isSameDay) {
+                events.push({
+                    id: `test-${test.id}`,
+                    title: `Тест: ${test.title}`,
+                    start: test.start_date,
+                    end: endDate.toISOString(),
+                    backgroundColor: 'rgb(224, 242, 254)',
+                    borderColor: 'rgb(224, 242, 254)',
+                    textColor: '#374151',
+                    display: 'auto',
+                    extendedProps: {
+                        description: test.description || '',
+                        subject: test.course_name,
+                        teacher: test.teacher_username,
+                        time: testTime,
+                        type: 'test',
+                    },
+                });
+            } else {
+                // Different days - create two separate events
+                events.push({
+                    id: `test-start-${test.id}`,
+                    title: `Начало теста: ${test.title}`,
+                    start: test.start_date,
+                    end: new Date(testDate.getTime() + 60 * 60 * 1000).toISOString(),
+                    backgroundColor: 'rgb(224, 242, 254)',
+                    borderColor: 'rgb(224, 242, 254)',
+                    textColor: '#374151',
+                    display: 'auto',
+                    extendedProps: {
+                        description: test.description || '',
+                        subject: test.course_name,
+                        teacher: test.teacher_username,
+                        time: testTime,
+                        type: 'test',
+                    },
+                });
+                
+                const endTime = endDate.toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                });
+                events.push({
+                    id: `test-end-${test.id}`,
+                    title: `Конец теста: ${test.title}`,
+                    start: endDate.toISOString(),
+                    end: new Date(endDate.getTime() + 60 * 60 * 1000).toISOString(),
+                    backgroundColor: 'rgb(254, 226, 226)',
+                    borderColor: 'rgb(254, 226, 226)',
+                    textColor: '#991b1b',
+                    display: 'auto',
+                    extendedProps: {
+                        description: test.description || '',
+                        subject: test.course_name,
+                        teacher: test.teacher_username,
+                        time: endTime,
+                        type: 'test',
+                    },
+                });
+            }
         });
 
         assignments.forEach(assignment => {

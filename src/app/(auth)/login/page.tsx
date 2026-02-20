@@ -94,7 +94,7 @@ export default function LoginPage() {
                             htmlFor="username"
                             className="block text-sm text-gray-700 font-bold mb-1"
                         >
-                            Имя пользователя
+                            Имя пользователя / Email / ИИН
                         </label>
                         <div className="relative">
                             <input
@@ -109,7 +109,7 @@ export default function LoginPage() {
                                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                                         : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                                 } bg-white text-gray-900 focus:outline-none focus:ring-2`}
-                                placeholder="student1"
+                                placeholder="student1, email@ex.com, или 123456789012"
                             />
                         </div>
                         {errors.username && (

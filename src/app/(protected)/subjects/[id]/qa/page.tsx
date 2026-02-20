@@ -38,6 +38,7 @@ interface ForumThread {
     is_public: boolean;
     is_resolved: boolean;
     allow_replies: boolean;
+    archived?: boolean;
     created_at: string;
     updated_at: string;
     posts: ForumPost[];
@@ -199,9 +200,28 @@ export default function SubjectQAPage() {
                                             {thread.title}
                                         </h3>
                                         {thread.type === 'announcement' && (
-                                            <span className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded">
-                                                Объявление
-                                            </span>
+                                            <>
+                                                <span className="px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-800 rounded">
+                                                    Объявление ученикам
+                                                </span>
+                                                {thread.archived && (
+                                                    <span className="px-2 py-1 text-xs font-medium bg-gray-200 text-gray-600 rounded">
+                                                        В архиве
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+                                        {thread.type === 'announcement_to_parents' && (
+                                            <>
+                                                <span className="px-2 py-1 text-xs font-semibold bg-amber-100 text-amber-800 rounded">
+                                                    Объявление родителям
+                                                </span>
+                                                {thread.archived && (
+                                                    <span className="px-2 py-1 text-xs font-medium bg-gray-200 text-gray-600 rounded">
+                                                        В архиве
+                                                    </span>
+                                                )}
+                                            </>
                                         )}
                                         {thread.type === 'question' && (
                                             <span className="px-2 py-1 text-xs font-semibold bg-purple-100 text-purple-800 rounded">

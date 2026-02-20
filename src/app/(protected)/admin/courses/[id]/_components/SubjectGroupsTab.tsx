@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, ExternalLink, Plus, User, Edit, Trash2, RefreshCw, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { Users, ExternalLink, Plus, User, UserPlus, Edit, Trash2, RefreshCw, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import type { SubjectGroup } from '@/types/course';
 import CreateSubjectGroupModal from './CreateSubjectGroupModal';
+import AssignTeacherModal from './AssignTeacherModal';
 import { courseService } from '@/services/courseService';
 
 interface SubjectGroupsTabProps {
@@ -30,6 +31,7 @@ export default function SubjectGroupsTab({
     const router = useRouter();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editingGroup, setEditingGroup] = useState<SubjectGroup | null>(null);
+    const [assigningTeacherGroup, setAssigningTeacherGroup] = useState<SubjectGroup | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [syncStatuses, setSyncStatuses] = useState<Record<number, SyncStatus>>({});
     const [loadingStatuses, setLoadingStatuses] = useState<Record<number, boolean>>({});
@@ -196,17 +198,37 @@ export default function SubjectGroupsTab({
                                             {group.classroom_display || `Класс #${group.classroom}`}
                                         </p>
                                         {group.teacher_username && (
-                                            <div className="flex items-center gap-1 mt-1 text-sm text-gray-600">
-                                                <User className="w-3 h-3" />
+                                            <div className="flex items-center gap-2 mt-1 text-sm text-gray-600 flex-wrap">
+                                                <User className="w-3 h-3 flex-shrink-0" />
                                                 <span className="truncate">
                                                     {group.teacher_fullname || group.teacher_username}
                                                 </span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setAssigningTeacherGroup(group);
+                                                    }}
+                                                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex-shrink-0"
+                                                >
+                                                    Изменить учителя
+                                                </button>
                                             </div>
                                         )}
                                         {!group.teacher_username && (
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                Учитель не назначен
-                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-xs text-gray-400">
+                                                    Учитель не назначен
+                                                </p>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setAssigningTeacherGroup(group);
+                                                    }}
+                                                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline px-2 py-0.5 rounded transition-colors"
+                                                >
+                                                    Назначить учителя
+                                                </button>
+                                            </div>
                                         )}
                                         {/* Sync Status */}
                                         <div className="flex items-center gap-1.5 mt-2">
@@ -282,6 +304,19 @@ export default function SubjectGroupsTab({
                     onSuccess={() => {
                         setIsCreateModalOpen(false);
                         setEditingGroup(null);
+                        onSubjectGroupsChange();
+                    }}
+                />
+            )}
+
+            {/* Assign Teacher Modal */}
+            {assigningTeacherGroup && (
+                <AssignTeacherModal
+                    isOpen={!!assigningTeacherGroup}
+                    onClose={() => setAssigningTeacherGroup(null)}
+                    subjectGroup={assigningTeacherGroup}
+                    onSuccess={() => {
+                        setAssigningTeacherGroup(null);
                         onSubjectGroupsChange();
                     }}
                 />

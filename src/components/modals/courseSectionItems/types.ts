@@ -16,6 +16,7 @@ export interface ResourceFormData {
     type: ResourceType;
     file?: File | null;
     files?: File[];
+    is_visible_to_students?: boolean;
 }
 
 export interface AssignmentAttachment {

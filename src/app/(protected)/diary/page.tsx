@@ -326,7 +326,58 @@ export default function DiaryPage() {
         };
     }, [showClassView, entries, weightsDraft]);
 
-    // Per-student stats for table
+    // Unique "works" (grade sources) from entries for table columns: assignment/test/manual by (source_type, source_id)
+    interface WorkColumn {
+        key: string;
+        source_type: GradeBookEntry['source_type'];
+        source_id: number;
+        title: string;
+        graded_at: string | null;
+    }
+    const gradeBookWorks = useMemo((): WorkColumn[] => {
+        if (!showClassView || entries.length === 0) return [];
+        const seen = new Map<string, { title: string; graded_at: string | null }>();
+        entries.forEach((e) => {
+            const key = `${e.source_type}-${e.source_id}`;
+            const existing = seen.get(key);
+            if (!existing || (e.graded_at && (!existing.graded_at || e.graded_at > existing.graded_at))) {
+                seen.set(key, { title: e.title, graded_at: e.graded_at || null });
+            }
+        });
+        return Array.from(seen.entries())
+            .map(([key, { title, graded_at }]) => {
+                const [source_type, idStr] = key.split('-');
+                return {
+                    key,
+                    source_type: source_type as GradeBookEntry['source_type'],
+                    source_id: parseInt(idStr, 10),
+                    title,
+                    graded_at,
+                };
+            })
+            .sort((a, b) => {
+                const typeOrder = { assignment: 0, test: 1, manual: 2 };
+                const t = typeOrder[a.source_type] - typeOrder[b.source_type];
+                if (t !== 0) return t;
+                return (a.graded_at || '').localeCompare(b.graded_at || '');
+            });
+    }, [showClassView, entries]);
+
+    // For each (student, work) take latest entry by graded_at
+    const gradeBookCell = useMemo(() => {
+        const map = new Map<string, GradeBookEntry>();
+        entries
+            .filter((e) => e.student_id != null)
+            .sort((a, b) => new Date(b.graded_at || 0).getTime() - new Date(a.graded_at || 0).getTime())
+            .forEach((e) => {
+                const k = `${e.student_id}-${e.source_type}-${e.source_id}`;
+                if (!map.has(k)) map.set(k, e);
+            });
+        return (studentId: number, work: WorkColumn) =>
+            map.get(`${studentId}-${work.source_type}-${work.source_id}`) ?? null;
+    }, [entries]);
+
+    // Per-student stats for table (and for grid row average)
     const studentStatsList = useMemo((): StudentStats[] => {
         if (!showClassView) return [];
         return students
@@ -649,7 +700,7 @@ export default function DiaryPage() {
                 </div>
             ) : (
                 <>
-                    {/* Class stats + table (admin/teacher) */}
+                    {/* Class view: grade-book table (students × works) */}
                     {showClassView && (
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-4 sm:mb-6">
                             <div className="px-3 sm:px-4 py-3 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
@@ -667,59 +718,68 @@ export default function DiaryPage() {
                             </div>
 
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[460px] text-sm">
+                                <table className="w-full text-sm border-collapse" style={{ minWidth: gradeBookWorks.length > 0 ? `${200 + gradeBookWorks.length * 72}px` : '460px' }}>
                                     <thead>
                                         <tr className="border-b border-gray-200 bg-gray-50/80">
-                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">№</th>
-                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">{t('diary.student')}</th>
-                                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">{t('diary.avgGrade')}</th>
-                                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">{t('diary.count')}</th>
-                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">{t('diary.lastGrade')}</th>
-                                            <th className="w-10 py-3 px-2" />
+                                            <th className="text-left py-2.5 px-2 sm:px-3 text-xs font-semibold text-gray-700 sticky left-0 bg-gray-50/95 z-10 w-8">№</th>
+                                            <th className="text-left py-2.5 px-2 sm:px-3 text-xs font-semibold text-gray-700 sticky left-8 bg-gray-50/95 z-10 min-w-[120px] sm:min-w-[140px]">{t('diary.student')}</th>
+                                            {gradeBookWorks.map((work) => (
+                                                <th
+                                                    key={work.key}
+                                                    className="text-left py-2.5 px-2 sm:px-3 text-xs font-semibold text-gray-600 max-w-[80px] sm:max-w-[100px] truncate align-bottom"
+                                                    title={work.title}
+                                                >
+                                                    {work.title || work.key}
+                                                </th>
+                                            ))}
+                                            <th className="text-right py-2.5 px-2 sm:px-3 text-xs font-semibold text-gray-700 bg-gray-100 min-w-[56px]">{t('diary.avgGrade')}</th>
+                                            <th className="w-9 py-2.5 px-1" />
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {studentStatsList.map((row, idx) => (
-                                            <tr
-                                                key={row.student.id}
-                                                onClick={() => setSelectedStudentId(row.student.id)}
-                                                className={`border-b border-gray-100 cursor-pointer transition-colors ${
-                                                    selectedStudentId === row.student.id
-                                                        ? 'bg-blue-50 hover:bg-blue-100'
-                                                        : 'hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                <td className="py-3 px-4 text-sm text-gray-500">{idx + 1}</td>
-                                                <td className="py-3 px-4">
-                                                    <span className="font-medium text-gray-900">
+                                        {studentStatsList.map((row, idx) => {
+                                            const isSelected = selectedStudentId === row.student.id;
+                                            return (
+                                                <tr
+                                                    key={row.student.id}
+                                                    onClick={() => setSelectedStudentId(isSelected ? null : row.student.id)}
+                                                    className={`border-b border-gray-100 cursor-pointer transition-colors ${
+                                                        isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    <td className="py-2 px-2 sm:px-3 text-gray-500 sticky left-0 bg-inherit z-10">{idx + 1}</td>
+                                                    <td className="py-2 px-2 sm:px-3 font-medium text-gray-900 sticky left-8 bg-inherit z-10 whitespace-nowrap">
                                                         {row.student.last_name} {row.student.first_name}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4 text-right">
-                                                    {row.avgPercent != null ? (
-                                                        <span className="font-semibold text-gray-900">{row.avgPercent}%</span>
-                                                    ) : (
-                                                        <span className="text-gray-400">—</span>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 px-4 text-right text-sm text-gray-600">{row.count}</td>
-                                                <td className="py-3 px-4 text-sm text-gray-600">
-                                                    {row.lastDate
-                                                        ? new Date(row.lastDate).toLocaleDateString('ru-RU')
-                                                        : '—'}
-                                                </td>
-                                                <td className="py-3 px-2">
-                                                    <ChevronRight
-                                                        className={`w-5 h-5 ${
-                                                            selectedStudentId === row.student.id ? 'text-blue-600' : 'text-gray-400'
-                                                        }`}
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    </td>
+                                                    {gradeBookWorks.map((work) => {
+                                                        const entry = gradeBookCell(row.student.id, work);
+                                                        return (
+                                                            <td key={work.key} className="py-2 px-2 sm:px-3 text-center text-gray-800">
+                                                                {entry ? (
+                                                                    <span className="font-medium" title={entry.feedback || undefined}>
+                                                                        {entry.value}{entry.max_value > 0 ? `/${entry.max_value}` : ''}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-300">—</span>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                    <td className="py-2 px-2 sm:px-3 text-right bg-gray-50/80 font-semibold text-gray-900">
+                                                        {row.avgPercent != null ? `${row.avgPercent}%` : '—'}
+                                                    </td>
+                                                    <td className="py-2 px-1">
+                                                        <ChevronRight className={`w-4 h-4 sm:w-5 sm:h-5 ${isSelected ? 'text-blue-600' : 'text-gray-400'}`} />
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
+                            <p className="px-3 sm:px-4 py-2 text-xs text-gray-500 border-t border-gray-100">
+                                {t('diary.clickRowToView')}
+                            </p>
                         </div>
                     )}
 
@@ -790,42 +850,57 @@ export default function DiaryPage() {
                                 </p>
                             </div>
                         ) : (
-                            <ul className="divide-y divide-gray-200">
-                                {displayedEntries.map((entry, idx) => (
-                                    <li
-                                        key={`${entry.source_type}-${entry.source_id}-${entry.student_id}-${idx}`}
-                                        className="px-4 py-3 hover:bg-gray-50 flex items-center gap-4"
-                                    >
-                                        <div className="flex-shrink-0">{sourceTypeIcon(entry.source_type)}</div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-medium text-gray-900">{entry.title}</span>
-                                                <span className="text-xs text-gray-500">{sourceTypeLabel(entry.source_type)}</span>
-                                                {(isAdmin || isTeacher) && entry.student_username && !selectedStudentId && (
-                                                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                        <User className="w-3 h-3" />
-                                                        {entry.student_username}
-                                                    </span>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[600px] text-sm text-left text-gray-700">
+                                    <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                                        <tr>
+                                            <th className="px-4 py-3 whitespace-nowrap">Дата</th>
+                                            <th className="px-4 py-3 whitespace-nowrap">Тип оценки</th>
+                                            <th className="px-4 py-3">Название</th>
+                                            {(isAdmin || isTeacher) && !selectedStudentId && (
+                                                <th className="px-4 py-3">Ученик</th>
+                                            )}
+                                            <th className="px-4 py-3">Комментарий</th>
+                                            <th className="px-4 py-3 text-right whitespace-nowrap">Оценка</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {displayedEntries.map((entry, idx) => (
+                                            <tr 
+                                                key={`${entry.source_type}-${entry.source_id}-${entry.student_id}-${idx}`}
+                                                className="hover:bg-gray-50 transition-colors"
+                                            >
+                                                <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                                                    {entry.graded_at ? new Date(entry.graded_at).toLocaleDateString('ru-RU') : '—'}
+                                                </td>
+                                                <td className="px-4 py-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-2">
+                                                        {sourceTypeIcon(entry.source_type)}
+                                                        <span className="text-xs text-gray-500">{sourceTypeLabel(entry.source_type)}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 font-medium text-gray-900">
+                                                    {entry.title}
+                                                </td>
+                                                {(isAdmin || isTeacher) && !selectedStudentId && (
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        <span className="text-xs text-gray-600 flex items-center gap-1">
+                                                            <User className="w-3 h-3" />
+                                                            {entry.student_username}
+                                                        </span>
+                                                    </td>
                                                 )}
-                                            </div>
-                                            {entry.feedback && (
-                                                <p className="text-sm text-gray-600 mt-0.5 truncate max-w-md">{entry.feedback}</p>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 flex-shrink-0">
-                                            {entry.graded_at && (
-                                                <span className="text-sm text-gray-500 flex items-center gap-1">
-                                                    <Calendar className="w-4 h-4" />
-                                                    {new Date(entry.graded_at).toLocaleDateString('ru-RU')}
-                                                </span>
-                                            )}
-                                            <span className="font-semibold text-gray-900">
-                                                {entry.value}/{entry.max_value}
-                                            </span>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                                                <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={entry.feedback || ''}>
+                                                    {entry.feedback || '—'}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+                                                    {entry.value} / {entry.max_value}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
                 </>

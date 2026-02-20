@@ -17,6 +17,7 @@ import {
     Building2,
     Users,
     MessageCircle,
+    MessageSquare,
     Calendar,
 } from 'lucide-react';
 import Image from 'next/image';
@@ -56,6 +57,12 @@ const navigation = [
         href: '/qa',
         icon: MessageCircle,
         roles: ['teacher'],
+    },
+    {
+        key: 'messages',
+        href: '/messages',
+        icon: MessageSquare,
+        roles: ['teacher', 'parent'],
     },
     // {
     //     key: 'assignments',
