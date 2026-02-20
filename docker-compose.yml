@@ -31,5 +31,5 @@ services:
             - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://85.198.89.128:8000/api}
             - NODE_ENV=production
         restart: unless-stopped
-        profiles:
-            - prod
+        # Без profile: при docker compose up (без -f) поднимается этот сервис.
+        # Для деплоя предпочтительно: docker compose -f docker-compose.prod.yml up -d
