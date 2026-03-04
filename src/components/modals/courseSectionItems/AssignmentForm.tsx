@@ -16,11 +16,14 @@ import AttachmentManager from './AttachmentManager';
 interface AssignmentFormProps extends FormCallbacks {
     courseSectionId: number;
     userId: number;
+    /** Значение по умолчанию для дедлайна (datetime-local, YYYY-MM-DDTHH:MM) */
+    defaultDueAt?: string;
 }
 
 export default function AssignmentForm({
     courseSectionId,
     userId,
+    defaultDueAt,
     onSuccess,
     onError,
     onComplete,
@@ -31,7 +34,7 @@ export default function AssignmentForm({
     const [assignmentForm, setAssignmentForm] = useState<AssignmentFormData>({
         title: '',
         description: '',
-        due_at: '',
+        due_at: defaultDueAt || '',
         max_grade: 100,
         teacher: userId,
         attachments: [],

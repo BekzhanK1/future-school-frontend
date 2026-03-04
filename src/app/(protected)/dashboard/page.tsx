@@ -20,6 +20,7 @@ export interface DayScheduleEvent {
     borderColor: string;
     textColor: string;
     type?: string;
+    url?: string;
 }
 
 export default function DashboardPage() {
@@ -31,6 +32,14 @@ export default function DashboardPage() {
     const handleDateChange = useCallback((date: Date, events: DayScheduleEvent[]) => {
         setSelectedDate(date);
         setDayEvents(events);
+    }, []);
+
+    const handleDayOffset = useCallback((delta: number) => {
+        setSelectedDate(prev => {
+            const next = new Date(prev);
+            next.setDate(prev.getDate() + delta);
+            return next;
+        });
     }, []);
 
     useEffect(() => {
@@ -65,7 +74,11 @@ export default function DashboardPage() {
                     </>
                 )}
                 <div className={user?.role === 'student' ? 'order-3 sm:flex-[1.2]' : 'sm:flex-1'}>
-                    <DaySchedule date={selectedDate} events={dayEvents} />
+                    <DaySchedule
+                        date={selectedDate}
+                        events={dayEvents}
+                        onChangeDate={handleDayOffset}
+                    />
                 </div>
             </div>
         </div>

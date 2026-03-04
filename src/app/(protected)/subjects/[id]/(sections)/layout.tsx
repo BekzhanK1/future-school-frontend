@@ -51,6 +51,7 @@ const tabs = [
     { href: 'participants', key: 'participants' },
     { href: 'grades', key: 'grades' },
     { href: 'attendance', key: 'attendance' },
+    { href: 'ktp', key: 'ktp' },
 ];
 
 function useParentPath() {

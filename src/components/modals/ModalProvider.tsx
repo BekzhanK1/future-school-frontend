@@ -73,6 +73,14 @@ export default function ModalProvider() {
                         (modalState.data as CourseSectionAddItemModalData)
                             ?.courseSectionId || 0
                     }
+                    weekDay={
+                        (modalState.data as CourseSectionAddItemModalData)
+                            ?.weekDay ?? null
+                    }
+                    defaultDueAt={
+                        (modalState.data as CourseSectionAddItemModalData)
+                            ?.defaultDueAt
+                    }
                     isOpen={modalState.isOpen}
                     onClose={() => modalController.close()}
                     onItemCreated={

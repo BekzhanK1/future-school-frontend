@@ -47,6 +47,7 @@ export interface Resource {
     url: string | null;
     file: string | null;
     position: number;
+    week_day?: number | null;
 }
 
 export interface Assignment {

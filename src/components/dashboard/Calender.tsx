@@ -56,6 +56,7 @@ interface ScheduleSlot {
     subject_group_classroom_display?: string;
     subject_group_teacher_fullname?: string;
     subject_group_teacher_username?: string;
+    subject_group_color?: string;
 }
 
 interface AcademicYear {
@@ -111,11 +112,56 @@ export interface DayScheduleEventFromCalendar {
     target_audience?: string;
     subject_group_display?: string;
     target_users?: Array<{ id: number; username: string; first_name?: string; last_name?: string }>;
+    url?: string;
 }
 
 interface CalendarProps {
     selectedDate?: Date;
     onDateChange?: (date: Date, events: DayScheduleEventFromCalendar[]) => void;
+}
+
+// Палитра цветов для предметов (уроков)
+const SUBJECT_COLOR_PALETTE: Array<{
+    bg: string;
+    border: string;
+    text: string;
+}> = [
+    { bg: 'rgb(254, 242, 242)', border: 'rgb(248, 113, 113)', text: '#991b1b' }, // red
+    { bg: 'rgb(255, 251, 235)', border: 'rgb(251, 191, 36)', text: '#92400e' }, // amber
+    { bg: 'rgb(240, 249, 255)', border: 'rgb(56, 189, 248)', text: '#075985' }, // sky
+    { bg: 'rgb(240, 253, 250)', border: 'rgb(45, 212, 191)', text: '#065f46' }, // teal
+    { bg: 'rgb(243, 244, 255)', border: 'rgb(129, 140, 248)', text: '#3730a3' }, // indigo
+    { bg: 'rgb(251, 244, 255)', border: 'rgb(216, 180, 254)', text: '#6b21a8' }, // violet
+    { bg: 'rgb(255, 247, 237)', border: 'rgb(253, 186, 116)', text: '#9a3412' }, // orange
+    { bg: 'rgb(240, 255, 244)', border: 'rgb(74, 222, 128)', text: '#166534' }, // green
+    { bg: 'rgb(240, 249, 255)', border: 'rgb(96, 165, 250)', text: '#1d4ed8' }, // blue
+    { bg: 'rgb(248, 250, 252)', border: 'rgb(148, 163, 184)', text: '#0f172a' }, // slate
+];
+
+const subjectColorCache: Record<
+    string,
+    { bg: string; border: string; text: string }
+> = {};
+
+function getSubjectColors(subjectName: string | undefined | null) {
+    const key = subjectName?.trim() || '';
+    if (!key) {
+        return {
+            bg: 'rgb(219, 234, 254)',
+            border: 'rgb(147, 197, 253)',
+            text: '#1e40af',
+        };
+    }
+    if (subjectColorCache[key]) return subjectColorCache[key];
+
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+        hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+    }
+    const idx = hash % SUBJECT_COLOR_PALETTE.length;
+    const colors = SUBJECT_COLOR_PALETTE[idx];
+    subjectColorCache[key] = colors;
+    return colors;
 }
 
 const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) => {
@@ -474,6 +520,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
             subject?: string;
             room?: string;
             type: string;
+            extendedProps?: any;
         }> = [];
         
         if (slots.length === 0) return events;
@@ -600,15 +647,22 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                     title += ` • ${roomText}`;
                 }
                 
+                const subjectColors = slot.subject_group_color ? {
+                    bg: slot.subject_group_color,
+                    border: slot.subject_group_color,
+                    text: '#111827',
+                } : getSubjectColors(subjectName);
+
                 events.push({
                     id: `schedule-${slot.id}-${currentDate.toISOString().split('T')[0]}`,
                     title: title,
                     start: startDateTime.toISOString(),
                     end: endDateTime.toISOString(),
-                    backgroundColor: 'rgb(219, 234, 254)',
-                    borderColor: 'rgb(147, 197, 253)',
-                    textColor: '#1e40af',
+                    backgroundColor: subjectColors.bg,
+                    borderColor: subjectColors.border,
+                    textColor: subjectColors.text,
                     display: 'auto',
+                    type: 'schedule',
                     extendedProps: {
                         description: classroomName,
                         subject: subjectName,
@@ -618,6 +672,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                         teacherFullName: teacherFullName, // Keep full name for modal
                         time: timeStr,
                         type: 'schedule',
+                        subject_group: slot.subject_group,
                     },
                 });
             }
@@ -743,6 +798,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
             room?: string;
             groupedEvents?: any[];
             isGrouped?: boolean;
+            extendedProps?: any;
         }> = [];
         
         // Add schedule events
@@ -920,6 +976,26 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                                 minute: '2-digit',
                             });
                         }
+                        // URL для модалки/перехода
+                        let url: string | undefined;
+                        const subType = subProps.type;
+                        if (subType === 'test') {
+                            const idMatch = String(sub.id).match(/test-(\d+)/);
+                            const testId = idMatch?.[1];
+                            if (testId) url = `/tests/${testId}`;
+                        } else if (subType === 'assignment') {
+                            const idMatch = String(sub.id).match(
+                                /assignment-(\d+)/
+                            );
+                            const assignId = idMatch?.[1];
+                            if (assignId) url = `/assignments/${assignId}`;
+                        } else if (
+                            subType === 'schedule' &&
+                            subProps.subject_group
+                        ) {
+                            url = `/subjects/${subProps.subject_group}/contents`;
+                        }
+
                         dayEvents.push({
                             id: sub.id,
                             title: subProps.type === 'schedule' ? 'Урок' : sub.title || '',
@@ -932,6 +1008,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                             borderColor: ev.borderColor || ev.backgroundColor || 'rgb(147, 197, 253)',
                             textColor: ev.textColor || '#1e40af',
                             type: subProps.type,
+                            url,
                         });
                     }
                 } else {
@@ -953,6 +1030,27 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                               : props.type === 'assignment'
                                 ? 'Домашнее Задание'
                                 : (ev as any).title || '';
+                    // URL для модалки/перехода
+                    let url: string | undefined;
+                    if (props.type === 'test') {
+                        const idMatch = String((ev as any).id).match(
+                            /test-(\d+)/
+                        );
+                        const testId = idMatch?.[1];
+                        if (testId) url = `/tests/${testId}`;
+                    } else if (props.type === 'assignment') {
+                        const idMatch = String((ev as any).id).match(
+                            /assignment-(\d+)/
+                        );
+                        const assignId = idMatch?.[1];
+                        if (assignId) url = `/assignments/${assignId}`;
+                    } else if (
+                        props.type === 'schedule' &&
+                        props.subject_group
+                    ) {
+                        url = `/subjects/${props.subject_group}/contents`;
+                    }
+
                     dayEvents.push({
                         id: (ev as any).id,
                         title,
@@ -970,6 +1068,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                         target_audience: props.target_audience,
                         subject_group_display: props.subject_group_display,
                         target_users: props.target_users_details,
+                        url,
                     });
                 }
             }
@@ -1264,8 +1363,9 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                         url = `/tests/${eventId}`;
                     } else if (eventType === 'assignment') {
                         url = `/assignments/${eventId}`;
+                    } else if (eventType === 'schedule' && props?.subject_group) {
+                        url = `/subjects/${props.subject_group}/contents`;
                     }
-                    // For schedule events, no URL needed
 
                     // Format time for display
                     let timeStr = props?.time || '';

@@ -22,16 +22,21 @@ interface Event {
     target_audience?: string;
     subject_group_display?: string;
     target_users?: Array<{ id: number; username: string; first_name?: string; last_name?: string }>;
+    type?: string;
+    url?: string;
 }
 
 interface DayScheduleProps {
     date?: Date;
     events?: Event[];
+    /** Сдвиг текущего дня в сайдбаре (например, -1 / +1) */
+    onChangeDate?: (delta: number) => void;
 }
 
 export default function DaySchedule({
     date = new Date(),
     events = [],
+    onChangeDate,
 }: DayScheduleProps) {
     const { t, locale } = useLocale();
     const { user } = useUserState();
@@ -66,11 +71,19 @@ export default function DaySchedule({
             target_audience: event.target_audience,
             subject_group_display: event.subject_group_display,
             target_users: event.target_users,
+            url: event.url,
+            type: (event as any).type,
         };
         modalController.open('event-modal', eventData);
     };
 
-    const getEventTypeColor = (title: string) => {
+    const getEventTypeColor = (event: Event) => {
+        // Для уроков используем цвет, пришедший из календаря
+        if ((event as any).type === 'schedule') {
+            return event.backgroundColor || 'rgb(220, 252, 231)';
+        }
+
+        const title = event.title;
         if (title === 'Домашнее Задание') return 'rgb(255, 237, 213)';
         if (title === 'Экзамен') return 'rgb(254, 226, 226)';
         if (title === 'Тест') return 'rgb(224, 242, 254)';
@@ -99,12 +112,38 @@ export default function DaySchedule({
         });
     };
 
+    const handlePrevDay = () => {
+        if (!onChangeDate) return;
+        onChangeDate(-1);
+    };
+
+    const handleNextDay = () => {
+        if (!onChangeDate) return;
+        onChangeDate(1);
+    };
+
     return (
         <div className="w-full bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-gray-900">
                     {t('daySchedule.title')} {formatDate(date)}
                 </h2>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handlePrevDay}
+                        className="px-2 py-1 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                        {t('common.prev') ?? '←'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleNextDay}
+                        className="px-2 py-1 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                        {t('common.next') ?? '→'}
+                    </button>
+                </div>
             </div>
 
             <div className="p-4 sm:h-80 overflow-y-auto h-auto">
@@ -156,10 +195,9 @@ export default function DaySchedule({
                                         <div
                                             className="px-2 py-1 rounded-md text-xs font-medium"
                                             style={{
-                                                backgroundColor:
-                                                    getEventTypeColor(
-                                                        event.title
-                                                    ),
+                                                backgroundColor: getEventTypeColor(
+                                                    event
+                                                ),
                                                 color: '#374151',
                                             }}
                                         >

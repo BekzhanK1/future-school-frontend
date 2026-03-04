@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useApi';
@@ -25,6 +25,16 @@ export default function LoginPage() {
         username?: string;
         password?: string;
     }>({});
+    const [sessionExpiredMsg, setSessionExpiredMsg] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('session_expired') === 'true') {
+                setSessionExpiredMsg(true);
+            }
+        }
+    }, []);
 
     const { login, loading: isLoading, error: authError } = useAuth();
     const router = useRouter();
@@ -74,6 +84,14 @@ export default function LoginPage() {
                     Добро пожаловать!
                 </h2>
 
+                {sessionExpiredMsg && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-800">
+                            Ваша сессия истекла. Пожалуйста, войдите снова.
+                        </p>
+                    </div>
+                )}
+
                 {authError && (
                     <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                         <p className="text-sm text-red-600">
@@ -94,7 +112,7 @@ export default function LoginPage() {
                             htmlFor="username"
                             className="block text-sm text-gray-700 font-bold mb-1"
                         >
-                            Имя пользователя / Email / ИИН
+                            Имя пользователя / Email
                         </label>
                         <div className="relative">
                             <input
@@ -109,7 +127,7 @@ export default function LoginPage() {
                                         ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                                         : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                                 } bg-white text-gray-900 focus:outline-none focus:ring-2`}
-                                placeholder="student1, email@ex.com, или 123456789012"
+                                placeholder="student1 или email@ex.com"
                             />
                         </div>
                         {errors.username && (

@@ -6,6 +6,7 @@ export type WeekItem =
           kind: 'link';
           title: string;
           file?: string;
+          week_day?: number | null;
           type?:
               | 'meet'
               | 'document'
@@ -82,6 +83,8 @@ export type WeekMaterialsData = {
     assignments: WeekItem[];
     tests: WeekItem[];
     is_current?: boolean;
+    start_date?: string | null;
+    end_date?: string | null;
 };
 
 interface WeekMaterialsSectionProps {

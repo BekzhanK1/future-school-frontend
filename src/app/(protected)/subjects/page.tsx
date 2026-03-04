@@ -23,6 +23,7 @@ interface SubjectData {
     course_name?: string;
     classroom_display?: string;
     teacher_email?: string;
+    color?: string | null;
 }
 
 // Helper function to extract subject type from course_code
@@ -100,6 +101,7 @@ export default function SubjectsPage() {
                 course_name: item.course_name,
                 classroom_display: item.classroom_display,
                 teacher_email: item.teacher_email,
+                color: item.color,
             };
         });
     };
@@ -167,9 +169,14 @@ export default function SubjectsPage() {
                 grade_level: subjectData.grade,
                 course_code: subjectData.course_code,
             });
-            const newSubject = {
-                id: response.data.id.toString(),
+            const newSubject: SubjectData = {
                 ...subjectData,
+                id: response.data.id.toString(),
+                teacher_username: '',
+                teacher_fullname: '',
+                urlPath: response.data.id.toString(),
+                bgId: subjectData.bgId || 'default-bg.png',
+                color: null,
             };
             console.log(response);
             setSubjects(prev => [...prev, newSubject]);
@@ -232,6 +239,21 @@ export default function SubjectsPage() {
         }
     };
 
+    const handleUpdateSubjectColor = async (id: string, color: string) => {
+        try {
+            await axiosInstance.patch(`/subject-groups/${id}/`, { color });
+            setSubjects(prev =>
+                prev.map(subject =>
+                    subject.id === id ? { ...subject, color } : subject
+                )
+            );
+        } catch (error) {
+            console.error('Error updating subject color:', error);
+            // Optionally revert color or show toast error
+        }
+    };
+
+
     console.log(subjects);
 
     const filteredSubjects = useMemo(() => {
@@ -245,6 +267,8 @@ export default function SubjectsPage() {
             return matchesSearch && matchesTeacher;
         });
     }, [subjects, searchQuery, selectedTeacher]);
+
+    const canEditColor = canEdit || user?.role === 'teacher';
 
     // Show loading state while fetching subjects
     if (fetchLoading) {
@@ -285,14 +309,23 @@ export default function SubjectsPage() {
                 subjects={filteredSubjects}
                 searchQuery={searchQuery}
                 canEdit={canEdit}
+                canEditColor={canEditColor}
                 onDelete={handleDeleteSubject}
+                onUpdateColor={handleUpdateSubjectColor}
                 loading={loading}
             />
 
             {/* Create/Edit Modal */}
             <SubjectModal
                 isOpen={showCreateModal || !!editingSubject}
-                subject={editingSubject || null}
+                subject={
+                    editingSubject
+                        ? {
+                              ...editingSubject,
+                              professor: editingSubject.teacher_fullname || '',
+                          }
+                        : null
+                }
                 onSave={
                     editingSubject
                         ? data => handleUpdateSubject(editingSubject.id, data)

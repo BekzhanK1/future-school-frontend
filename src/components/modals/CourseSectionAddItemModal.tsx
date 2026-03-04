@@ -14,6 +14,10 @@ interface CourseSectionAddItemModalProps {
     onClose: () => void;
     courseSectionId: number;
     onItemCreated?: (itemType: 'resource' | 'assignment' | 'test') => void;
+    /** Значение по умолчанию для дедлайна задания (datetime-local, YYYY-MM-DDTHH:MM) */
+    defaultDueAt?: string;
+    /** День недели внутри секции (0=Monday, 6=Sunday) */
+    weekDay?: number | null;
 }
 
 export default function CourseSectionAddItemModal({
@@ -21,6 +25,8 @@ export default function CourseSectionAddItemModal({
     onClose,
     courseSectionId,
     onItemCreated,
+    defaultDueAt,
+    weekDay,
 }: CourseSectionAddItemModalProps) {
     const [itemType, setItemType] = useState<ItemType>('resource');
     const [error, setError] = useState<string | null>(null);
@@ -104,6 +110,7 @@ export default function CourseSectionAddItemModal({
                 {itemType === 'resource' && (
                     <ResourceForm
                         courseSectionId={courseSectionId}
+                        weekDay={weekDay ?? undefined}
                         onSuccess={handleSuccess}
                         onError={handleError}
                         onComplete={handleComplete}
@@ -114,6 +121,7 @@ export default function CourseSectionAddItemModal({
                     <AssignmentForm
                         courseSectionId={courseSectionId}
                         userId={typeof user?.id === 'number' ? user.id : 0}
+                        defaultDueAt={defaultDueAt}
                         onSuccess={handleSuccess}
                         onError={handleError}
                         onComplete={handleComplete}

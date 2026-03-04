@@ -17,6 +17,7 @@ export interface ResourceFormData {
     file?: File | null;
     files?: File[];
     is_visible_to_students?: boolean;
+    week_day?: number | null;
 }
 
 export interface AssignmentAttachment {

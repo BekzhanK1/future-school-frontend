@@ -616,6 +616,35 @@ export default function WeekMaterialsPanel({
         }
     }, [courseSectionId, onRefresh]);
 
+    const handleAddItemForDate = useCallback(
+        (date: Date) => {
+            if (!courseSectionId) return;
+
+            // Значение для input[type="datetime-local"]: YYYY-MM-DDTHH:MM
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            // По умолчанию 09:00
+            const defaultDueAt = `${year}-${month}-${day}T09:00`;
+            const jsWeekDay = (date.getDay() + 6) % 7; // 0=Пн..6=Вс
+
+            modalController.open('course-section-add-item', {
+                courseSectionId,
+                defaultDueAt,
+                weekDay: jsWeekDay,
+                onItemCreated: (
+                    itemType: 'resource' | 'assignment' | 'test'
+                ) => {
+                    console.log(
+                        `${itemType} created for ${defaultDueAt}, refreshing...`
+                    );
+                    onRefresh?.();
+                },
+            });
+        },
+        [courseSectionId, onRefresh]
+    );
+
     const handleDeleteItem = useCallback(
         async (
             itemId: string,
@@ -669,6 +698,36 @@ export default function WeekMaterialsPanel({
         console.log('Test keys:', Object.keys(data.tests[0]));
     }
 
+    // Группировка ресурсов по дню недели (0=Пн ... 6=Вс)
+    const resourcesByWeekDay: Record<number, WeekItem[]> = {};
+    const resourcesWithoutDay: WeekItem[] = [];
+    if (data.resources && data.resources.length > 0) {
+        data.resources.forEach(item => {
+            const wd =
+                typeof (item as any).week_day === 'number'
+                    ? (item as any).week_day
+                    : null;
+            if (wd === null || wd < 0 || wd > 6) {
+                resourcesWithoutDay.push(item);
+            } else {
+                if (!resourcesByWeekDay[wd]) {
+                    resourcesByWeekDay[wd] = [];
+                }
+                resourcesByWeekDay[wd].push(item);
+            }
+        });
+    }
+
+    const weekdayLabels = [
+        'Понедельник',
+        'Вторник',
+        'Среда',
+        'Четверг',
+        'Пятница',
+        'Суббота',
+        'Воскресенье',
+    ];
+
     return (
         <section
             ref={sectionRef}
@@ -688,6 +747,57 @@ export default function WeekMaterialsPanel({
                 </h2>
 
                 <div className="flex items-center justify-center gap-2">
+                    {/* Быстрые кнопки по дням недели внутри секции */}
+                    {isTeacher && data.start_date && (
+                        <div className="hidden md:flex items-center gap-1 mr-2">
+                            {(() => {
+                                const start = new Date(
+                                    data.start_date as string
+                                );
+                                const days: Date[] = [];
+                                for (let i = 0; i < 7; i++) {
+                                    const d = new Date(start);
+                                    d.setDate(start.getDate() + i);
+                                    days.push(d);
+                                }
+                                const weekdayShort = [
+                                    'Пн',
+                                    'Вт',
+                                    'Ср',
+                                    'Чт',
+                                    'Пт',
+                                    'Сб',
+                                    'Вс',
+                                ];
+                                return days.map((d, idx) => (
+                                    <button
+                                        key={`${d.toISOString()}-${idx}`}
+                                        type="button"
+                                        onClick={() =>
+                                            handleAddItemForDate(d)
+                                        }
+                                        className="px-2 py-1 text-[11px] rounded-full border border-gray-200 text-gray-700 hover:bg-gray-100 bg-gray-50"
+                                        title={`Добавить материал на ${d.toLocaleDateString(
+                                            'ru-RU',
+                                            {
+                                                day: 'numeric',
+                                                month: 'short',
+                                            }
+                                        )}`}
+                                    >
+                                        <span className="font-medium mr-1">
+                                            {
+                                                weekdayShort[
+                                                    (d.getDay() + 6) % 7
+                                                ]
+                                            }
+                                        </span>
+                                        +
+                                    </button>
+                                ));
+                            })()}
+                        </div>
+                    )}
                     {isTeacher && (
                         <>
                             <button
@@ -748,29 +858,73 @@ export default function WeekMaterialsPanel({
                     </div>
                 )}
                 {data.resources && data.resources.length > 0 && (
-                    <div className="space-y-0 w-full overflow-hidden">
-                        {data.resources.map((item, index) => {
-                            return (
-                                <div key={item.id}>
-                                    {index > 0 && (
-                                        <div className="border-t border-gray-100" />
-                                    )}
-                                    <SharedLinkItem
-                                        item={item}
-                                        isTeacher={isTeacher}
-                                        onFileView={(fileData, filename) =>
-                                            handleFileView(
-                                                fileData,
-                                                filename,
-                                                courseSectionId
-                                            )
-                                        }
-                                        onDelete={handleDeleteItem}
-                                        onRefresh={onRefresh}
-                                    />
-                                </div>
-                            );
-                        })}
+                    <div className="space-y-4 w-full overflow-hidden">
+                        {/* По дням недели */}
+                        {Object.keys(resourcesByWeekDay)
+                            .map(k => parseInt(k, 10))
+                            .sort((a, b) => a - b)
+                            .map(weekDay => {
+                                const items = resourcesByWeekDay[weekDay] || [];
+                                if (!items.length) return null;
+                                return (
+                                    <div key={`wd-${weekDay}`}>
+                                        <div className="mb-2 text-sm font-semibold text-gray-700">
+                                            {weekdayLabels[weekDay] ?? 'День'}
+                                        </div>
+                                        <div className="space-y-0">
+                                            {items.map((item, index) => (
+                                                <div key={item.id}>
+                                                    {index > 0 && (
+                                                        <div className="border-t border-gray-100" />
+                                                    )}
+                                                    <SharedLinkItem
+                                                        item={item}
+                                                        isTeacher={isTeacher}
+                                                        onFileView={(
+                                                            fileData,
+                                                            filename
+                                                        ) =>
+                                                            handleFileView(
+                                                                fileData,
+                                                                filename,
+                                                                courseSectionId
+                                                            )
+                                                        }
+                                                        onDelete={handleDeleteItem}
+                                                        onRefresh={onRefresh}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                        {/* Ресурсы без week_day остаются без заголовков */}
+                        {resourcesWithoutDay.length > 0 && (
+                            <div className="space-y-0 w-full overflow-hidden">
+                                {resourcesWithoutDay.map((item, index) => (
+                                    <div key={item.id}>
+                                        {index > 0 && (
+                                            <div className="border-t border-gray-100" />
+                                        )}
+                                        <SharedLinkItem
+                                            item={item}
+                                            isTeacher={isTeacher}
+                                            onFileView={(fileData, filename) =>
+                                                handleFileView(
+                                                    fileData,
+                                                    filename,
+                                                    courseSectionId
+                                                )
+                                            }
+                                            onDelete={handleDeleteItem}
+                                            onRefresh={onRefresh}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
                 {data.assignments && data.assignments.length > 0 && (

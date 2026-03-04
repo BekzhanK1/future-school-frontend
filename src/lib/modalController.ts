@@ -54,6 +54,10 @@ export interface EventsListModalData {
 export interface CourseSectionAddItemModalData {
     courseSectionId: number;
     onItemCreated?: (itemType: 'resource' | 'assignment' | 'test') => void;
+    /** Значение по умолчанию для поля дедлайна задания (datetime-local, YYYY-MM-DDTHH:MM) */
+    defaultDueAt?: string;
+    /** День недели для ресурса/задания внутри секции (0=Monday, 6=Sunday) */
+    weekDay?: number | null;
 }
 
 export interface CourseSectionCreateModalData {

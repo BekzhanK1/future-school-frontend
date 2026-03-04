@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Palette } from 'lucide-react';
 import Subject from './Subject';
 import { useLocale } from '@/contexts/LocaleContext';
 
@@ -17,6 +17,7 @@ interface SubjectData {
     description?: string;
     classroom_display?: string;
     teacher_email?: string;
+    color?: string | null;
 }
 
 interface SubjectListProps {
@@ -25,6 +26,8 @@ interface SubjectListProps {
     canEdit?: boolean;
     onEdit?: (subject: SubjectData) => void;
     onDelete?: (id: string) => void;
+    onUpdateColor?: (id: string, color: string) => void;
+    canEditColor?: boolean;
     loading?: boolean;
 }
 
@@ -32,7 +35,9 @@ export default function SubjectList({
     subjects,
     searchQuery = '',
     canEdit = false,
+    canEditColor = false,
     onDelete,
+    onUpdateColor,
     loading = false,
 }: SubjectListProps) {
     const router = useRouter();
@@ -64,8 +69,28 @@ export default function SubjectList({
                                 description={subject.description}
                                 classroom_display={subject.classroom_display}
                                 teacher_email={subject.teacher_email}
+                                color={subject.color}
                             />
                         </div>
+
+                        {canEditColor && (
+                            <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <label className="relative p-1.5 bg-white/90 shadow text-gray-700 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex items-center justify-center">
+                                    <Palette className="w-4 h-4" />
+                                    <input
+                                        type="color"
+                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                                        value={subject.color || '#DBEAFE'}
+                                        onChange={(e) => {
+                                            if (onUpdateColor) {
+                                                onUpdateColor(subject.id, e.target.value);
+                                            }
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                </label>
+                            </div>
+                        )}
 
                         {canEdit && (
                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

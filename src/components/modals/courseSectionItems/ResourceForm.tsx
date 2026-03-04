@@ -18,12 +18,15 @@ interface ResourceFormProps extends FormCallbacks {
         type?: ResourceType;
         is_visible_to_students?: boolean;
     };
+    /** День недели внутри секции (0=Monday, 6=Sunday) — только для create */
+    weekDay?: number;
 }
 
 export default function ResourceForm({
     courseSectionId,
     resourceId,
     initialData,
+    weekDay,
     onSuccess,
     onError,
     onComplete,
@@ -39,6 +42,7 @@ export default function ResourceForm({
         is_visible_to_students: initialData?.is_visible_to_students ?? true,
         file: null,
         files: [],
+        week_day: typeof weekDay === 'number' ? weekDay : undefined,
     });
 
     // Load resource data if editing
@@ -183,6 +187,9 @@ export default function ResourceForm({
                         'is_visible_to_students',
                         String(resourceForm.is_visible_to_students)
                     );
+                    if (typeof weekDay === 'number') {
+                        formData.append('week_day', String(weekDay));
+                    }
                     formData.append('file', resourceForm.file);
 
                     response = await axiosInstance.post(
@@ -196,7 +203,7 @@ export default function ResourceForm({
                     );
                 } else {
                     // Handle regular resource (link, text, directory without files)
-                    const resourceData = {
+                    const resourceData: any = {
                         course_section: courseSectionId,
                         type: resourceForm.type,
                         title: resourceForm.title,
@@ -204,6 +211,9 @@ export default function ResourceForm({
                         is_visible_to_students:
                             resourceForm.is_visible_to_students,
                     };
+                    if (typeof weekDay === 'number') {
+                        resourceData.week_day = weekDay;
+                    }
 
                     response = await axiosInstance.post(
                         '/resources/',

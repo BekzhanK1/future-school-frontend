@@ -204,9 +204,11 @@ axiosInstance.interceptors.response.use(
 
         if (error.response?.status === 401 && originalRequest) {
             if (originalRequest?.url?.includes('/auth/refresh')) {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    window.location.href = '/login?session_expired=true';
+                }
                 return Promise.reject(error);
             }
             // Не пытаться обновлять токен при ошибке логина (ещё нет refresh)
@@ -227,16 +229,19 @@ axiosInstance.interceptors.response.use(
 
                     return axiosInstance(originalRequest);
                 } else {
-                    localStorage.removeItem('accessToken');
-                    localStorage.removeItem('refreshToken');
-
+                    if (typeof window !== 'undefined') {
+                        localStorage.removeItem('accessToken');
+                        localStorage.removeItem('refreshToken');
+                        window.location.href = '/login?session_expired=true';
+                    }
                     return Promise.reject(error);
                 }
             } catch (refreshError) {
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('refreshToken');
-                redirect('/login');
-
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    window.location.href = '/login?session_expired=true';
+                }
                 return Promise.reject(error);
             } finally {
                 isRefreshing = false;
