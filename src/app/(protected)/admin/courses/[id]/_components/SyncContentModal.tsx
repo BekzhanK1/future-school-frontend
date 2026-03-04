@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { courseService } from '@/services/courseService';
 import Modal from '@/components/ui/Modal';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 interface SyncContentModalProps {
     isOpen: boolean;
@@ -20,7 +22,7 @@ export default function SyncContentModal({
     courseName,
     onSuccess,
 }: SyncContentModalProps) {
-    const [academicStartDate, setAcademicStartDate] = useState('');
+    const [academicStartDate, setAcademicStartDate] = useState<Date | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
@@ -33,7 +35,15 @@ export default function SyncContentModal({
         if (now.getMonth() < 8) {
             year -= 1;
         }
-        return `${year}-09-01`;
+        return new Date(year, 8, 1);
+    };
+
+    const formatDateString = (date: Date | null) => {
+        if (!date) return undefined;
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -43,16 +53,17 @@ export default function SyncContentModal({
 
         try {
             setSubmitting(true);
+            const dateStr = academicStartDate ? formatDateString(academicStartDate) : formatDateString(getDefaultAcademicStartDate());
             const result = await courseService.syncContent(
                 courseId,
-                academicStartDate || undefined
+                dateStr
             );
             console.log('Sync result:', result);
             setSuccess(result.detail || 'Контент успешно синхронизирован');
             // Wait a bit before calling onSuccess to show success message
             setTimeout(() => {
                 onSuccess();
-                setAcademicStartDate('');
+                setAcademicStartDate(null);
                 setSuccess(null);
             }, 1500);
         } catch (err: any) {
@@ -128,10 +139,10 @@ export default function SyncContentModal({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Дата начала учебного года
                         </label>
-                        <input
-                            type="date"
-                            value={academicStartDate || getDefaultAcademicStartDate()}
-                            onChange={(e) => setAcademicStartDate(e.target.value)}
+                        <DatePicker
+                            selected={academicStartDate || getDefaultAcademicStartDate()}
+                            onChange={(date: Date | null) => setAcademicStartDate(date)}
+                            dateFormat="dd/MM/yyyy"
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                         />
                         <p className="text-xs text-gray-500 mt-1">

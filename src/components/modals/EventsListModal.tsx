@@ -113,7 +113,7 @@ export default function EventsListModal({
                             return `${w}, ${d.getDate()} ${m} ${d.getFullYear()} ж.`;
                         }
                         return d.toLocaleDateString(
-                            locale === 'en' ? 'en-US' : 'ru-RU',
+                            locale === 'en' ? 'en-GB' : 'ru-RU',
                             {
                                 weekday: 'long',
                                 day: 'numeric',

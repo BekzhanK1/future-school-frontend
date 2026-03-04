@@ -116,7 +116,7 @@ export default function EventModal({
                     </span>
                     <span className="font-medium">
                         {new Date(event.start).toLocaleDateString(
-                            locale === 'en' ? 'en-US' : 'ru-RU',
+                            locale === 'en' ? 'en-GB' : 'ru-RU',
                             {
                                 day: 'numeric',
                                 month: 'long',

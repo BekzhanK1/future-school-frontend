@@ -68,6 +68,12 @@ interface AcademicYear {
     quarter2_weeks?: number;
     quarter3_weeks?: number;
     quarter4_weeks?: number;
+    quarters?: Array<{
+        id: number;
+        quarter_index: number;
+        start_date: string;
+        end_date: string;
+    }>;
     autumn_holiday_start?: string;
     autumn_holiday_end?: string;
     winter_holiday_start?: string;
@@ -323,18 +329,18 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
         } else {
             // Get locale string based on current locale
             const localeMap: Record<string, string> = {
-                en: 'en-US',
+                en: 'en-GB',
                 ru: 'ru-RU',
                 kk: 'kk-KZ',
             };
-            const dateLocale = localeMap[locale] || 'en-US';
+            const dateLocale = localeMap[locale] || 'en-GB';
 
             if (view === 'timeGridDay') {
                 // For daily view, show full date with weekday
                 return startDate.toLocaleDateString(dateLocale, {
                     weekday: 'long',
                     year: 'numeric',
-                    month: 'long',
+                    month: 'short',
                     day: 'numeric',
                 });
             } else if (view === 'timeGridWeek') {
@@ -469,9 +475,22 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
 
     // Helper function to calculate quarter start dates
     const calculateQuarterDates = (year: AcademicYear) => {
-        const startDate = new Date(year.start_date);
         const quarters: Array<{ start: Date; end: Date }> = [];
         
+        if (year.quarters && year.quarters.length > 0) {
+            // Sort by index just in case and convert to Date objects
+            const sorted = [...year.quarters].sort((a, b) => a.quarter_index - b.quarter_index);
+            for (const q of sorted) {
+                quarters.push({
+                    start: new Date(q.start_date),
+                    end: new Date(q.end_date)
+                });
+            }
+            return quarters;
+        }
+
+        // Fallback for purely local calculation if quarters aren't fetched
+        const startDate = new Date(year.start_date);
         const weeksPerQuarter = [
             year.quarter1_weeks || 8,
             year.quarter2_weeks || 8,
@@ -1287,8 +1306,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                 return t(`calendar.daysShort.${key}`);
             },
             titleFormat: {
-                month: 'long',
-                week: 'short',
+                month: 'long' as const,
             },
             buttonText: {
                 today: t('dashboard.calendarButtons.today'),
@@ -1299,8 +1317,6 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
             selectable: true,
             selectMirror: true,
             weekends: true,
-            firstDay: 1, // Monday
-            dateClick: undefined,
             locale: locale === 'kk' ? 'kk' : locale === 'ru' ? 'ru' : 'en',
             slotMinTime: '08:00:00',
             slotMaxTime: '22:00:00',
@@ -1321,7 +1337,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                             if (!timeStr && event.start) {
                                 const startTime = new Date(event.start);
                                 const endTime = event.end ? new Date(event.end) : new Date(startTime.getTime() + 60 * 60 * 1000);
-                                const localeCode = locale === 'en' ? 'en-US' : 'ru-RU';
+                                const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
                                 timeStr = `${startTime.toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`;
                             } else if (timeStr) {
                                 timeStr = timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');

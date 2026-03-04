@@ -127,6 +127,7 @@ export default function TestCreator() {
                         subject_group: testData.subject_group || undefined,
                         questions: testData.questions?.map((q: any) => ({
                             id: q.id.toString(), // Keep as string for state management
+                            test: testId ? testId.toString() : '',
                             type: q.type,
                             text: q.text,
                             points: q.points,
@@ -236,7 +237,7 @@ export default function TestCreator() {
 
         if (locale === 'en') {
             // English: 12-hour format with AM/PM
-            return date.toLocaleString('en-US', {
+            return date.toLocaleString('en-GB', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',

@@ -110,7 +110,7 @@ export default function SubjectQAPage() {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
+        return date.toLocaleDateString('en-GB', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -235,10 +235,10 @@ export default function SubjectQAPage() {
                                             </span>
                                         )}
                                         {thread.is_resolved && (
-                                            <CheckCircle2 className="w-5 h-5 text-green-600" title="Решено" />
+                                            <CheckCircle2 className="w-5 h-5 text-green-600" aria-label="Решено" />
                                         )}
                                         {!thread.is_public && (
-                                            <Lock className="w-5 h-5 text-gray-400" title="Приватно" />
+                                            <Lock className="w-5 h-5 text-gray-400" aria-label="Приватно" />
                                         )}
                                     </div>
                                     <p className="text-gray-600 mb-3 line-clamp-2">

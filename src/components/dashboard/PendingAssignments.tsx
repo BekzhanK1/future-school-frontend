@@ -113,7 +113,7 @@ export default function PendingAssignments({
 
     const handleAssignmentClick = (assignment: Assignment) => {
         const time = new Date(assignment.dueDate).toLocaleTimeString(
-            locale === 'en' ? 'en-US' : 'ru-RU',
+            locale === 'en' ? 'en-GB' : 'ru-RU',
             {
                 hour: locale === 'en' ? 'numeric' : '2-digit',
                 minute: '2-digit',

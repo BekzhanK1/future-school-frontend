@@ -44,6 +44,7 @@ export interface EventsListModalData {
         start: string;
         end?: string;
         description?: string;
+        url?: string;
         target_audience?: string;
         subject_group_display?: string;
         target_users?: Array<{ id: number; username: string; first_name?: string; last_name?: string }>;

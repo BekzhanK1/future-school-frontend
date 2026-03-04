@@ -18,7 +18,7 @@ export default function AssignmentMetadata({
 
         if (locale === 'en') {
             // English: 12-hour format with AM/PM
-            return date.toLocaleString('en-US', {
+            return date.toLocaleString('en-GB', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',

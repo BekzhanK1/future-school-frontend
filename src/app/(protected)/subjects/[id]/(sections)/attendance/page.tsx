@@ -468,7 +468,7 @@ export default function AttendancePage() {
             <AttendanceModal
                 isOpen={isAttendanceModalOpen}
                 onClose={() => setIsAttendanceModalOpen(false)}
-                subjectGroupId={subject?.id || 0}
+                subjectGroupId={Number(subject?.id) || 0}
                 onSuccess={fetchAttendance}
             />
 
@@ -485,7 +485,7 @@ export default function AttendancePage() {
                                     ? new Date(
                                           todayAttendance.taken_at
                                       ).toLocaleTimeString(
-                                          locale === 'en' ? 'en-US' : 'ru-RU',
+                                          locale === 'en' ? 'en-GB' : 'ru-RU',
                                           { hour: '2-digit', minute: '2-digit' }
                                       )
                                     : '',
@@ -525,12 +525,12 @@ export default function AttendancePage() {
                                     date: new Date(
                                         selectedSession.taken_at
                                     ).toLocaleDateString(
-                                        locale === 'en' ? 'en-US' : 'ru-RU'
+                                        locale === 'en' ? 'en-GB' : 'ru-RU'
                                     ),
                                     time: new Date(
                                         selectedSession.taken_at
                                     ).toLocaleTimeString(
-                                        locale === 'en' ? 'en-US' : 'ru-RU',
+                                        locale === 'en' ? 'en-GB' : 'ru-RU',
                                         { hour: '2-digit', minute: '2-digit' }
                                     ),
                                 })}
@@ -553,7 +553,7 @@ export default function AttendancePage() {
                                 {new Date(
                                     selectedSession.taken_at
                                 ).toLocaleTimeString(
-                                    locale === 'en' ? 'en-US' : 'ru-RU',
+                                    locale === 'en' ? 'en-GB' : 'ru-RU',
                                     { hour: '2-digit', minute: '2-digit' }
                                 )}
                                 )

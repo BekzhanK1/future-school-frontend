@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, XCircle, Calendar, MessageSquare } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import axiosInstance from '@/lib/axios';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 interface Student {
     id: number;
@@ -34,12 +36,12 @@ export default function AttendanceModal({
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [attendance, setAttendance] = useState<Record<number, StudentAttendance>>({});
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState<Date | null>(new Date());
 
     useEffect(() => {
         if (isOpen) {
             // Reset date and attendance when modal opens
-            setDate(new Date().toISOString().split('T')[0]);
+            setDate(new Date());
             setAttendance({});
             fetchStudents();
         }
@@ -151,11 +153,11 @@ export default function AttendanceModal({
                         Дата <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                        <Calendar className="absolute left-3 top-3 w-5 h-5 text-gray-400 pointer-events-none" />
-                        <input
-                            type="date"
-                            value={date}
-                            onChange={e => setDate(e.target.value)}
+                        <Calendar className="absolute left-3 top-3 w-5 h-5 text-gray-400 pointer-events-none z-10" />
+                        <DatePicker
+                            selected={date}
+                            onChange={(d: Date | null) => setDate(d)}
+                            dateFormat="dd/MM/yyyy"
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
@@ -268,7 +270,7 @@ export default function AttendanceModal({
                     <button
                         onClick={() => {
                             // Reset state when closing
-                            setDate(new Date().toISOString().split('T')[0]);
+                            setDate(new Date());
                             setAttendance({});
                             setStudents([]);
                             onClose();

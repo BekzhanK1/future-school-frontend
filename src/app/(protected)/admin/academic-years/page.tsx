@@ -6,16 +6,26 @@ import { Plus, Calendar, Edit, Trash2, CheckCircle2, XCircle } from 'lucide-reac
 import { useUserState } from '@/contexts/UserContext';
 import axiosInstance from '@/lib/axios';
 import Modal from '@/components/ui/Modal';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+interface Quarter {
+    id: number;
+    quarter_index: number;
+    start_date: string;
+    end_date: string;
+}
 
 interface AcademicYear {
     id: number;
     name: string;
     start_date: string;
     end_date: string;
-    quarter1_weeks: number;
-    quarter2_weeks: number;
-    quarter3_weeks: number;
-    quarter4_weeks: number;
+    quarters?: Quarter[];
+    quarter1_weeks?: number;
+    quarter2_weeks?: number;
+    quarter3_weeks?: number;
+    quarter4_weeks?: number;
     autumn_holiday_start?: string;
     autumn_holiday_end?: string;
     winter_holiday_start?: string;
@@ -232,13 +242,23 @@ export default function AcademicYearsPage() {
                                 {/* Quarters */}
                                 <div className="mb-4">
                                     <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                                        Четверти (недели):
+                                        Четверти:
                                     </h4>
-                                    <div className="flex gap-4 text-sm">
-                                        <span>1-я: {year.quarter1_weeks} нед.</span>
-                                        <span>2-я: {year.quarter2_weeks} нед.</span>
-                                        <span>3-я: {year.quarter3_weeks} нед.</span>
-                                        <span>4-я: {year.quarter4_weeks} нед.</span>
+                                    <div className="flex flex-col gap-1 text-sm text-gray-600">
+                                        {year.quarters && year.quarters.length > 0 ? (
+                                            year.quarters.map(q => (
+                                                <div key={q.id}>
+                                                    {q.quarter_index}-я: {new Date(q.start_date).toLocaleDateString('ru-RU')} - {new Date(q.end_date).toLocaleDateString('ru-RU')}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="flex gap-4">
+                                                <span>1-я: {year.quarter1_weeks} нед.</span>
+                                                <span>2-я: {year.quarter2_weeks} нед.</span>
+                                                <span>3-я: {year.quarter3_weeks} нед.</span>
+                                                <span>4-я: {year.quarter4_weeks} нед.</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -301,6 +321,20 @@ interface CreateAcademicYearModalProps {
     academicYear?: AcademicYear | null;
 }
 
+const parseDateString = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    const [y, m, d] = dateStr.split('-');
+    return new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+};
+
+const formatDateString = (date: Date | null) => {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
 function CreateAcademicYearModal({
     isOpen,
     onClose,
@@ -315,6 +349,7 @@ function CreateAcademicYearModal({
         quarter2_weeks: 8,
         quarter3_weeks: 10,
         quarter4_weeks: 8,
+        quarters: [] as { quarter_index: number; start_date: string; end_date: string }[],
         autumn_holiday_start: '',
         autumn_holiday_end: '',
         winter_holiday_start: '',
@@ -332,10 +367,17 @@ function CreateAcademicYearModal({
                 name: academicYear.name,
                 start_date: academicYear.start_date,
                 end_date: academicYear.end_date,
-                quarter1_weeks: academicYear.quarter1_weeks,
-                quarter2_weeks: academicYear.quarter2_weeks,
-                quarter3_weeks: academicYear.quarter3_weeks,
-                quarter4_weeks: academicYear.quarter4_weeks,
+                quarter1_weeks: academicYear.quarter1_weeks || 8,
+                quarter2_weeks: academicYear.quarter2_weeks || 8,
+                quarter3_weeks: academicYear.quarter3_weeks || 10,
+                quarter4_weeks: academicYear.quarter4_weeks || 8,
+                quarters: academicYear.quarters 
+                    ? academicYear.quarters.map(q => ({
+                        quarter_index: q.quarter_index,
+                        start_date: q.start_date,
+                        end_date: q.end_date
+                    })) 
+                    : [],
                 autumn_holiday_start: academicYear.autumn_holiday_start || '',
                 autumn_holiday_end: academicYear.autumn_holiday_end || '',
                 winter_holiday_start: academicYear.winter_holiday_start || '',
@@ -378,6 +420,7 @@ function CreateAcademicYearModal({
                 quarter2_weeks: 8,
                 quarter3_weeks: 10,
                 quarter4_weeks: 8,
+                quarters: [],
                 autumn_holiday_start: `${startYear}-10-27`,
                 autumn_holiday_end: `${startYear}-11-02`,
                 winter_holiday_start: `${startYear}-12-29`,
@@ -420,12 +463,19 @@ function CreateAcademicYearModal({
                 name: formData.name,
                 start_date: formData.start_date,
                 end_date: formData.end_date,
-                quarter1_weeks: formData.quarter1_weeks,
-                quarter2_weeks: formData.quarter2_weeks,
-                quarter3_weeks: formData.quarter3_weeks,
-                quarter4_weeks: formData.quarter4_weeks,
                 is_active: formData.is_active,
             };
+            
+            if (academicYear) {
+                // For updates, send the exact quarter dates
+                payload.quarters = formData.quarters;
+            } else {
+                // For creation, send the week counts to auto-generate
+                payload.quarter1_weeks = formData.quarter1_weeks;
+                payload.quarter2_weeks = formData.quarter2_weeks;
+                payload.quarter3_weeks = formData.quarter3_weeks;
+                payload.quarter4_weeks = formData.quarter4_weeks;
+            }
 
             // Add holidays if provided
             if (formData.autumn_holiday_start && formData.autumn_holiday_end) {
@@ -524,14 +574,17 @@ function CreateAcademicYearModal({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Дата начала <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="date"
-                            value={formData.start_date}
-                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                                errors.start_date ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                        />
+                        <div className="w-full">
+                            <DatePicker
+                                selected={parseDateString(formData.start_date)}
+                                onChange={(date: Date | null) => setFormData({ ...formData, start_date: formatDateString(date) })}
+                                dateFormat="dd/MM/yyyy"
+                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                                    errors.start_date ? 'border-red-500' : 'border-gray-300'
+                                }`}
+                                wrapperClassName="w-full"
+                            />
+                        </div>
                         {errors.start_date && (
                             <p className="text-sm text-red-600 mt-1">{errors.start_date}</p>
                         )}
@@ -540,44 +593,93 @@ function CreateAcademicYearModal({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Дата окончания <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="date"
-                            value={formData.end_date}
-                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                                errors.end_date ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                        />
+                        <div className="w-full">
+                            <DatePicker
+                                selected={parseDateString(formData.end_date)}
+                                onChange={(date: Date | null) => setFormData({ ...formData, end_date: formatDateString(date) })}
+                                dateFormat="dd/MM/yyyy"
+                                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                                    errors.end_date ? 'border-red-500' : 'border-gray-300'
+                                }`}
+                                wrapperClassName="w-full"
+                            />
+                        </div>
                         {errors.end_date && (
                             <p className="text-sm text-red-600 mt-1">{errors.end_date}</p>
                         )}
                     </div>
                 </div>
 
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Четверти (недели)</h3>
-                    <div className="grid grid-cols-4 gap-4">
-                        {[1, 2, 3, 4].map((quarter) => (
-                            <div key={quarter}>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    {quarter}-я четверть
-                                </label>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="20"
-                                    value={formData[`quarter${quarter}_weeks` as keyof typeof formData] as number}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            [`quarter${quarter}_weeks`]: parseInt(e.target.value) || 0,
-                                        } as any)
-                                    }
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                />
-                            </div>
-                        ))}
-                    </div>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Четверти</h3>
+                    {academicYear && formData.quarters.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            {formData.quarters.map((q, idx) => (
+                                <div key={idx} className="bg-white p-3 rounded border">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        {q.quarter_index}-я четверть
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1">
+                                            <span className="text-xs text-gray-500 block mb-1">Начало</span>
+                                            <div className="w-full">
+                                                <DatePicker
+                                                    selected={parseDateString(q.start_date)}
+                                                    onChange={(date: Date | null) => {
+                                                        const newQ = [...formData.quarters];
+                                                        newQ[idx].start_date = formatDateString(date);
+                                                        setFormData({ ...formData, quarters: newQ });
+                                                    }}
+                                                    dateFormat="dd/MM/yyyy"
+                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                    wrapperClassName="w-full"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <span className="text-xs text-gray-500 block mb-1">Окончание</span>
+                                            <div className="w-full">
+                                                <DatePicker
+                                                    selected={parseDateString(q.end_date)}
+                                                    onChange={(date: Date | null) => {
+                                                        const newQ = [...formData.quarters];
+                                                        newQ[idx].end_date = formatDateString(date);
+                                                        setFormData({ ...formData, quarters: newQ });
+                                                    }}
+                                                    dateFormat="dd/MM/yyyy"
+                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                    wrapperClassName="w-full"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-4 gap-4">
+                            {[1, 2, 3, 4].map((quarter) => (
+                                <div key={quarter}>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        {quarter}-я четверть (недель)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="20"
+                                        value={formData[`quarter${quarter}_weeks` as keyof typeof formData] as number}
+                                        onChange={(e) =>
+                                            setFormData({
+                                                ...formData,
+                                                [`quarter${quarter}_weeks`]: parseInt(e.target.value) || 0,
+                                            } as any)
+                                        }
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div>
@@ -593,33 +695,39 @@ function CreateAcademicYearModal({
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         {holiday.label} каникулы - начало
                                     </label>
-                                    <input
-                                        type="date"
-                                        value={formData[`${holiday.name}_holiday_start` as keyof typeof formData] as string}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                [`${holiday.name}_holiday_start`]: e.target.value,
-                                            } as any)
-                                        }
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    />
+                                    <div className="w-full">
+                                        <DatePicker
+                                            selected={parseDateString(formData[`${holiday.name}_holiday_start` as keyof typeof formData] as string)}
+                                            onChange={(date: Date | null) =>
+                                                setFormData({
+                                                    ...formData,
+                                                    [`${holiday.name}_holiday_start`]: formatDateString(date),
+                                                } as any)
+                                            }
+                                            dateFormat="dd/MM/yyyy"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            wrapperClassName="w-full"
+                                        />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         {holiday.label} каникулы - окончание
                                     </label>
-                                    <input
-                                        type="date"
-                                        value={formData[`${holiday.name}_holiday_end` as keyof typeof formData] as string}
-                                        onChange={(e) =>
-                                            setFormData({
-                                                ...formData,
-                                                [`${holiday.name}_holiday_end`]: e.target.value,
-                                            } as any)
-                                        }
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    />
+                                    <div className="w-full">
+                                        <DatePicker
+                                            selected={parseDateString(formData[`${holiday.name}_holiday_end` as keyof typeof formData] as string)}
+                                            onChange={(date: Date | null) =>
+                                                setFormData({
+                                                    ...formData,
+                                                    [`${holiday.name}_holiday_end`]: formatDateString(date),
+                                                } as any)
+                                            }
+                                            dateFormat="dd/MM/yyyy"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            wrapperClassName="w-full"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ))}

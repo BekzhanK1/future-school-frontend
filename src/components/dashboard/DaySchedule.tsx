@@ -104,7 +104,7 @@ export default function DaySchedule({
     };
 
     const formatDate = (date: Date) => {
-        const localeCode = locale === 'en' ? 'en-US' : 'ru-RU';
+        const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
         return date.toLocaleDateString(localeCode, {
             day: 'numeric',
             month: 'long',
