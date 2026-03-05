@@ -30,11 +30,12 @@ jobs:
           context: .
           file: Dockerfile.prod
           tags: future-frontend:latest
-          # Эта настройка сразу сохраняет результат в файл, заменяя шаг `docker save`
           outputs: type=docker,dest=frontend-image.tar
-          # Если Next.js нужны переменные окружения на этапе билда, раскомментируй блок ниже:
-          # build-args: |
-          #   NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          
+          # ВОТ ЭТОТ БЛОК НУЖНО РАЗБЛОКИРОВАТЬ:
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
