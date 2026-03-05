@@ -61,15 +61,18 @@ jobs:
             set -euo pipefail
             cd ~/future-school/future-school-frontend
             
-            # СНАЧАЛА полностью гасим старые контейнеры и чистим сирот
+            # Гасим старые контейнеры
             docker compose -f docker-compose.prod.yml down --remove-orphans
             
-            # Загружаем новый образ из архива
+            # ВНИМАНИЕ: Удаляем старый образ, чтобы Docker о нем забыл!
+            docker rmi future-frontend:latest || true
+            
+            # Загружаем свежий образ из архива
             docker load -i frontend-image.tar
             
-            # Поднимаем заново (он сам создаст новую чистую сеть)
-            docker compose -f docker-compose.prod.yml up --no-build -d
+            # Поднимаем контейнер
+            docker compose -f docker-compose.prod.yml up --force-recreate --no-build -d
             
-            # Убираем за собой мусор
+            # Чистим мусор
             rm frontend-image.tar
             docker system prune -f || true
