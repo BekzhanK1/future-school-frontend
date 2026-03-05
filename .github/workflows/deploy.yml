@@ -19,15 +19,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Собираем Docker-образ локально (сервер в этот момент отдыхает)
-      - name: Build Docker Image
-        run: |
-          # Собираем образ и даем ему четкое имя: future-frontend
-          docker build -t future-frontend:latest -f Dockerfile.prod .
+      # 2. Настраиваем Docker Buildx (движок, который поддерживает кэширование)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # 3. Сохраняем готовый образ в файл-архив
-      - name: Save Docker Image to tar
-        run: docker save future-frontend:latest > frontend-image.tar
+      # 3. Собираем образ с использованием кэша и сразу сохраняем в tar-архив
+      - name: Build and export Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.prod
+          tags: future-frontend:latest
+          # Эта настройка сразу сохраняет результат в файл, заменяя шаг `docker save`
+          outputs: type=docker,dest=frontend-image.tar
+          # Если Next.js нужны переменные окружения на этапе билда, раскомментируй блок ниже:
+          # build-args: |
+          #   NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # 4. Перекидываем архив на твой сервер
       - name: Copy Image to Server

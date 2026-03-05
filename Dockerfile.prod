@@ -1,35 +1,46 @@
-FROM node:20-alpine AS builder
-
+# --- ЭТАП 1: Установка зависимостей ---
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY package*.json ./
+# Используем кэш для npm, чтобы не качать пакеты каждый раз
+RUN --mount=type=cache,target=/root/.npm npm ci
 
+# --- ЭТАП 2: Сборка ---
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Прокидываем API URL (важно для статической генерации Next.js)
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
-COPY package*.json ./
-
-RUN npm ci
-
-COPY . .
 
 RUN npm run build
 
+# --- ЭТАП 3: Финальный образ (максимально легкий) ---
 FROM node:20-alpine AS runner
-
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV production
+# Отключаем телеметрию Next.js для приватности и чуть большей скорости
+ENV NEXT_TELEMETRY_DISABLED 1
 
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.* ./
 
-RUN npm ci --omit=dev
+# Магия standalone: копируем только минимально необходимые файлы
+# Это уменьшит образ с ~1ГБ до ~150МБ
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 
 EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 
-CMD ["npm", "start"]
-
+# Запускаем через скомпилированный server.js (быстрее, чем npm)
+CMD ["node", "server.js"]
