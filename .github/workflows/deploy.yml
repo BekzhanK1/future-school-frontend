@@ -61,18 +61,21 @@ jobs:
             set -euo pipefail
             cd ~/future-school/future-school-frontend
             
-            # Гасим старые контейнеры
+            # 1. ПОДТЯГИВАЕМ СВЕЖИЕ КОНФИГИ ИЗ GIT ПРЯМО НА СЕРВЕРЕ
+            git pull origin main
+            
+            # 2. Гасим старые контейнеры
             docker compose -f docker-compose.prod.yml down --remove-orphans
             
-            # ВНИМАНИЕ: Удаляем старый образ, чтобы Docker о нем забыл!
+            # 3. Удаляем старый образ, чтобы Docker точно подхватил новый
             docker rmi future-frontend:latest || true
             
-            # Загружаем свежий образ из архива
+            # 4. Загружаем новый образ из архива
             docker load -i frontend-image.tar
             
-            # Поднимаем контейнер
+            # 5. Поднимаем контейнер (--force-recreate гарантирует обновление)
             docker compose -f docker-compose.prod.yml up --force-recreate --no-build -d
             
-            # Чистим мусор
+            # 6. Убираем за собой мусор
             rm frontend-image.tar
             docker system prune -f || true
