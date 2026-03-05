@@ -15,6 +15,31 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # 1. Скачиваем код репозитория на виртуальную машину GitHub Actions
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Собираем Docker-образ локально (сервер в этот момент отдыхает)
+      - name: Build Docker Image
+        run: |
+          # Собираем образ и даем ему четкое имя: future-frontend
+          docker build -t future-frontend:latest -f Dockerfile.prod .
+
+      # 3. Сохраняем готовый образ в файл-архив
+      - name: Save Docker Image to tar
+        run: docker save future-frontend:latest > frontend-image.tar
+
+      # 4. Перекидываем архив на твой сервер
+      - name: Copy Image to Server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "frontend-image.tar"
+          target: "future-school/future-school-frontend/" # Путь относительно домашней папки
+
+      # 5. Распаковываем архив на сервере и резко перезапускаем
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -26,9 +51,13 @@ jobs:
           script: |
             set -euo pipefail
             cd ~/future-school/future-school-frontend
-            docker compose -f docker-compose.prod.yml down || true
-            git fetch --all
-            git checkout main || git checkout -b main
-            git pull origin main
-            docker compose -f docker-compose.prod.yml up --build -d
+            
+            # Загружаем новый образ из архива в Docker
+            docker load -i frontend-image.tar
+            
+            # Запускаем контейнер (--no-build гарантирует, что он не начнет собираться заново)
+            docker compose -f docker-compose.prod.yml up --no-build -d
+            
+            # Убираем за собой мусор
+            rm frontend-image.tar
             docker system prune -f || true

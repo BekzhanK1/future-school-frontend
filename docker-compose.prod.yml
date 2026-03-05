@@ -1,9 +1,7 @@
-# Production: frontend :3000 (отдельный репо; API на другом сервере/порту).
-# Запуск из корня фронт-репо: docker compose -f docker-compose.prod.yml up --build -d
-# В .env задать NEXT_PUBLIC_API_URL (URL бэкенда для браузера, напр. http://IP:9000/api).
-
+# Production: frontend :3000
 services:
   frontend:
+    image: future-frontend:latest
     build:
       context: .
       dockerfile: Dockerfile.prod
