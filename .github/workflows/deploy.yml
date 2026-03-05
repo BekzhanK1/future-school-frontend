@@ -61,10 +61,13 @@ jobs:
             set -euo pipefail
             cd ~/future-school/future-school-frontend
             
-            # Загружаем новый образ из архива в Docker
+            # СНАЧАЛА полностью гасим старые контейнеры и чистим сирот
+            docker compose -f docker-compose.prod.yml down --remove-orphans
+            
+            # Загружаем новый образ из архива
             docker load -i frontend-image.tar
             
-            # Запускаем контейнер (--no-build гарантирует, что он не начнет собираться заново)
+            # Поднимаем заново (он сам создаст новую чистую сеть)
             docker compose -f docker-compose.prod.yml up --no-build -d
             
             # Убираем за собой мусор
