@@ -29,6 +29,19 @@ interface Teacher {
     email: string;
 }
 
+interface ExistingScheduleSlot {
+    id: number;
+    day_of_week: number;
+    day_of_week_display: string;
+    start_time: string;
+    end_time: string;
+    room?: string | null;
+    subject_group_course_name: string;
+    subject_group_classroom_id?: number | null;
+    subject_group_classroom_display?: string | null;
+    subject_group_teacher_fullname?: string | null;
+}
+
 interface BulkCreateSubjectGroupsModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -54,6 +67,12 @@ export default function BulkCreateSubjectGroupsModal({
     const [schools, setSchools] = useState<Array<{ id: number; name: string }>>([]);
     // Schedule slots per classroom: { classroomId: [slots] }
     const [scheduleSlotsByClassroom, setScheduleSlotsByClassroom] = useState<Record<number, any[]>>({});
+    const [existingScheduleByClassroom, setExistingScheduleByClassroom] = useState<Record<number, ExistingScheduleSlot[]>>({});
+    const [loadingExistingSchedule, setLoadingExistingSchedule] = useState<Record<number, boolean>>({});
+    const [teacherSchedule, setTeacherSchedule] = useState<ExistingScheduleSlot[]>([]);
+    const [loadingTeacherSchedule, setLoadingTeacherSchedule] = useState(false);
+    // Classroom IDs that already have a SubjectGroup for the selected course
+    const [takenClassroomIds, setTakenClassroomIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
         if (isOpen) {
@@ -66,6 +85,11 @@ export default function BulkCreateSubjectGroupsModal({
             setError(null);
             setSelectedSchool(0);
             setScheduleSlotsByClassroom({});
+            setExistingScheduleByClassroom({});
+            setLoadingExistingSchedule({});
+            setTeacherSchedule([]);
+            setLoadingTeacherSchedule(false);
+            setTakenClassroomIds(new Set());
         }
     }, [isOpen]);
 
@@ -126,11 +150,14 @@ export default function BulkCreateSubjectGroupsModal({
         ? teachers.filter((t: any) => t.school === selectedSchool)
         : teachers;
 
+    const hasCourse = selectedCourses.length === 1;
+    const hasTeacher = selectedTeachers.length === 1;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (selectedCourses.length === 0) {
-            setError('Выберите хотя бы один курс');
+        if (!hasCourse) {
+            setError('Сначала выберите курс');
             return;
         }
 
@@ -139,8 +166,8 @@ export default function BulkCreateSubjectGroupsModal({
             return;
         }
 
-        if (selectedTeachers.length === 0) {
-            setError('Выберите хотя бы одного учителя');
+        if (!hasTeacher) {
+            setError('Выберите учителя');
             return;
         }
 
@@ -152,28 +179,33 @@ export default function BulkCreateSubjectGroupsModal({
             const response = await axiosInstance.post('/subject-groups/bulk-create/', {
                 course_ids: selectedCourses,
                 classroom_ids: selectedClassrooms,
-                teacher_ids: selectedTeachers.length > 0 ? selectedTeachers : undefined,
+                teacher_ids: selectedTeachers,
             });
 
-            // Apply schedule to created subject groups based on classroom
-            if (response.data?.created) {
-                for (const createdItem of response.data.created) {
-                    const classroomId = createdItem.classroom_id;
-                    const subjectGroupId = createdItem.id;
-                    const slots = scheduleSlotsByClassroom[classroomId] || [];
-                    
-                    for (const slot of slots) {
-                        try {
-                            await axiosInstance.post('/schedule-slots/', {
-                                subject_group: subjectGroupId,
-                                day_of_week: slot.day_of_week,
-                                start_time: slot.start_time,
-                                end_time: slot.end_time,
-                                room: slot.room || undefined,
-                            });
-                        } catch (slotError) {
-                            console.error(`Error creating schedule slot for subject group ${subjectGroupId}:`, slotError);
-                        }
+            // Apply schedule slots to both newly created and already-existing subject groups
+            const allGroups = [
+                ...(response.data?.created ?? []),
+                ...(response.data?.skipped ?? []),
+            ];
+            for (const item of allGroups) {
+                const classroomId = item.classroom_id;
+                const subjectGroupId = item.id;
+                if (!subjectGroupId) continue;
+                const slots = scheduleSlotsByClassroom[classroomId] || [];
+                for (const slot of slots) {
+                    try {
+                        await axiosInstance.post('/schedule-slots/', {
+                            subject_group: subjectGroupId,
+                            day_of_week: slot.day_of_week,
+                            start_time: slot.start_time,
+                            end_time: slot.end_time,
+                            room: slot.room || undefined,
+                        });
+                    } catch (slotError: any) {
+                        console.error(
+                            `Error creating schedule slot for subject group ${subjectGroupId}:`,
+                            slotError?.response?.data || slotError,
+                        );
                     }
                 }
             }
@@ -224,6 +256,79 @@ export default function BulkCreateSubjectGroupsModal({
         });
     }, []);
 
+    // Load existing schedule for each newly selected classroom
+    useEffect(() => {
+        const loadForClassroom = async (classroomId: number) => {
+            setLoadingExistingSchedule(prev => ({ ...prev, [classroomId]: true }));
+            try {
+                const res = await axiosInstance.get<ExistingScheduleSlot[]>('/schedule-slots/by-classroom/', {
+                    params: { classroom_id: classroomId },
+                });
+                const data = Array.isArray(res.data) ? res.data : (res.data as any).results ?? [];
+                setExistingScheduleByClassroom(prev => ({ ...prev, [classroomId]: data }));
+            } catch (err) {
+                console.error('Error loading classroom schedule', classroomId, err);
+            } finally {
+                setLoadingExistingSchedule(prev => ({ ...prev, [classroomId]: false }));
+            }
+        };
+
+        selectedClassrooms.forEach((id) => {
+            if (!existingScheduleByClassroom[id] && !loadingExistingSchedule[id]) {
+                void loadForClassroom(id);
+            }
+        });
+    }, [selectedClassrooms, existingScheduleByClassroom, loadingExistingSchedule]);
+
+    // Load teacher schedule whenever the selected teacher changes
+    useEffect(() => {
+        const teacherId = selectedTeachers[0];
+        if (!teacherId) {
+            setTeacherSchedule([]);
+            return;
+        }
+        const load = async () => {
+            setLoadingTeacherSchedule(true);
+            try {
+                const res = await axiosInstance.get<ExistingScheduleSlot[]>('/schedule-slots/by-teacher/', {
+                    params: { teacher_id: teacherId },
+                });
+                const data = Array.isArray(res.data) ? res.data : (res.data as any).results ?? [];
+                setTeacherSchedule(data);
+            } catch (err) {
+                console.error('Error loading teacher schedule', teacherId, err);
+            } finally {
+                setLoadingTeacherSchedule(false);
+            }
+        };
+        void load();
+    }, [selectedTeachers]);
+
+    // Fetch taken classrooms whenever selected course changes
+    useEffect(() => {
+        const courseId = selectedCourses[0];
+        if (!courseId) {
+            setTakenClassroomIds(new Set());
+            return;
+        }
+        const load = async () => {
+            try {
+                const res = await axiosInstance.get('/subject-groups/', {
+                    params: { course: courseId, page_size: 1000 },
+                });
+                const items: Array<{ classroom: number }> = Array.isArray(res.data)
+                    ? res.data
+                    : (res.data as any).results ?? [];
+                setTakenClassroomIds(new Set(items.map(i => i.classroom)));
+                // Deselect any already-taken classrooms
+                setSelectedClassrooms(prev => prev.filter(id => !items.some(i => i.classroom === id)));
+            } catch (err) {
+                console.error('Error loading taken classrooms', courseId, err);
+            }
+        };
+        void load();
+    }, [selectedCourses]);
+
     if (!isOpen) return null;
 
     return (
@@ -262,12 +367,12 @@ export default function BulkCreateSubjectGroupsModal({
                         </select>
                     </div>
 
-                    {/* Courses Selection */}
+                    {/* 1. Курсы (шаг 1) */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Курсы <span className="text-red-500">*</span>
                             <span className="text-sm text-gray-500 ml-2">
-                                ({selectedCourses.length} выбрано)
+                                {hasCourse ? '(1 выбран)' : '(ничего не выбрано)'}
                             </span>
                         </label>
                         <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
@@ -280,16 +385,21 @@ export default function BulkCreateSubjectGroupsModal({
                                     {courses.map(course => (
                                         <label
                                             key={course.id}
-                                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                            className={`flex items-center gap-2 p-2 rounded cursor-pointer border ${
+                                                selectedCourses.includes(course.id)
+                                                    ? 'bg-blue-50 border-blue-400'
+                                                    : 'hover:bg-gray-50 border-transparent'
+                                            }`}
                                         >
                                             <input
-                                                type="checkbox"
+                                                type="radio"
+                                                name="bulk-course"
                                                 checked={selectedCourses.includes(course.id)}
                                                 onChange={() =>
-                                                    toggleSelection(
-                                                        course.id,
-                                                        selectedCourses,
-                                                        setSelectedCourses
+                                                    setSelectedCourses(
+                                                        selectedCourses.includes(course.id)
+                                                            ? []
+                                                            : [course.id],
                                                     )
                                                 }
                                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -305,61 +415,25 @@ export default function BulkCreateSubjectGroupsModal({
                         </div>
                     </div>
 
-                    {/* Classrooms Selection */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Классы <span className="text-red-500">*</span>
-                            <span className="text-sm text-gray-500 ml-2">
-                                ({selectedClassrooms.length} выбрано)
-                            </span>
-                        </label>
-                        <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
-                            {loadingData ? (
-                                <p className="text-gray-500">Загрузка...</p>
-                            ) : filteredClassrooms.length === 0 ? (
-                                <p className="text-gray-500">Нет доступных классов</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {filteredClassrooms.map(classroom => (
-                                        <label
-                                            key={classroom.id}
-                                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedClassrooms.includes(classroom.id)}
-                                                onChange={() =>
-                                                    toggleSelection(
-                                                        classroom.id,
-                                                        selectedClassrooms,
-                                                        setSelectedClassrooms
-                                                    )
-                                                }
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <GraduationCap className="w-4 h-4 text-gray-400" />
-                                            <span className="text-sm">
-                                                {classroom.grade}{classroom.letter}
-                                                {classroom.school_name && ` (${classroom.school_name})`}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Teachers Selection (Required) */}
+                    {/* 2. Учителя (шаг 2, доступен после выбора курса) */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Учителя <span className="text-red-500">*</span>
                             <span className="text-sm text-gray-500 ml-2">
-                                ({selectedTeachers.length} выбрано)
+                                {hasTeacher ? '(1 выбран)' : '(ничего не выбрано)'}
                             </span>
                         </label>
-                        <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto">
+                        <div
+                            className={`border rounded-md p-3 max-h-48 overflow-y-auto ${
+                                hasCourse ? 'border-gray-300' : 'border-dashed border-gray-200 opacity-60'
+                            }`}
+                        >
                             {loadingData ? (
                                 <p className="text-gray-500">Загрузка...</p>
+                            ) : !hasCourse ? (
+                                <p className="text-gray-400 text-sm">
+                                    Сначала выберите курс, затем станет доступен выбор учителя.
+                                </p>
                             ) : filteredTeachers.length === 0 ? (
                                 <p className="text-gray-500">Нет доступных учителей</p>
                             ) : (
@@ -367,16 +441,21 @@ export default function BulkCreateSubjectGroupsModal({
                                     {filteredTeachers.map(teacher => (
                                         <label
                                             key={teacher.id}
-                                            className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                                            className={`flex items-center gap-2 p-2 rounded cursor-pointer border ${
+                                                selectedTeachers.includes(teacher.id)
+                                                    ? 'bg-purple-50 border-purple-400'
+                                                    : 'hover:bg-gray-50 border-transparent'
+                                            }`}
                                         >
                                             <input
-                                                type="checkbox"
+                                                type="radio"
+                                                name="bulk-teacher"
                                                 checked={selectedTeachers.includes(teacher.id)}
                                                 onChange={() =>
-                                                    toggleSelection(
-                                                        teacher.id,
-                                                        selectedTeachers,
-                                                        setSelectedTeachers
+                                                    setSelectedTeachers(
+                                                        selectedTeachers.includes(teacher.id)
+                                                            ? []
+                                                            : [teacher.id],
                                                     )
                                                 }
                                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -387,6 +466,72 @@ export default function BulkCreateSubjectGroupsModal({
                                             </span>
                                         </label>
                                     ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 3. Классы (шаг 3, доступен после выбора курса и учителя) */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Классы <span className="text-red-500">*</span>
+                            <span className="text-sm text-gray-500 ml-2">
+                                ({selectedClassrooms.length} выбрано)
+                            </span>
+                        </label>
+                        <div
+                            className={`border rounded-md p-3 max-h-48 overflow-y-auto ${
+                                hasCourse && hasTeacher
+                                    ? 'border-gray-300'
+                                    : 'border-dashed border-gray-200 opacity-60'
+                            }`}
+                        >
+                            {loadingData ? (
+                                <p className="text-gray-500">Загрузка...</p>
+                            ) : !(hasCourse && hasTeacher) ? (
+                                <p className="text-gray-400 text-sm">
+                                    Сначала выберите курс и учителя, затем будут доступны классы.
+                                </p>
+                            ) : filteredClassrooms.length === 0 ? (
+                                <p className="text-gray-500">Нет доступных классов</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filteredClassrooms.map(classroom => {
+                                        const isTaken = takenClassroomIds.has(classroom.id);
+                                        return (
+                                            <label
+                                                key={classroom.id}
+                                                title={isTaken ? 'Для этого класса уже существует группа по выбранному курсу' : undefined}
+                                                className={`flex items-center gap-2 p-2 rounded ${
+                                                    isTaken
+                                                        ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                                                        : 'hover:bg-gray-50 cursor-pointer'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    disabled={isTaken}
+                                                    checked={selectedClassrooms.includes(classroom.id)}
+                                                    onChange={() =>
+                                                        !isTaken && toggleSelection(
+                                                            classroom.id,
+                                                            selectedClassrooms,
+                                                            setSelectedClassrooms
+                                                        )
+                                                    }
+                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed"
+                                                />
+                                                <GraduationCap className={`w-4 h-4 ${isTaken ? 'text-gray-300' : 'text-gray-400'}`} />
+                                                <span className={`text-sm ${isTaken ? 'text-gray-400 line-through' : ''}`}>
+                                                    {classroom.grade}{classroom.letter}
+                                                    {classroom.school_name && ` (${classroom.school_name})`}
+                                                </span>
+                                                {isTaken && (
+                                                    <span className="ml-auto text-xs text-orange-500 font-medium">уже есть</span>
+                                                )}
+                                            </label>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -432,6 +577,8 @@ export default function BulkCreateSubjectGroupsModal({
                                 {selectedClassrooms.map((classroomId) => {
                                     const classroom = filteredClassrooms.find(c => c.id === classroomId);
                                     if (!classroom) return null;
+                                    const currentSchedule = existingScheduleByClassroom[classroomId] || [];
+                                    const isScheduleLoading = loadingExistingSchedule[classroomId];
                                     
                                     return (
                                         <div key={classroomId} className="bg-gradient-to-br from-purple-50 via-white to-blue-50 rounded-xl p-6 border-2 border-purple-300 shadow-lg">
@@ -440,14 +587,83 @@ export default function BulkCreateSubjectGroupsModal({
                                                     {classroom.grade}{classroom.letter}
                                                     {classroom.school_name && ` (${classroom.school_name})`}
                                                 </h4>
-                                                <p className="text-sm text-gray-600 mt-1">
-                                                    Расписание для этого класса
-                                                </p>
+                                                <div className="mt-1 space-y-1 text-sm text-gray-700">
+                                                    {hasCourse && (
+                                                        <p>
+                                                            <span className="font-semibold">Курс:</span>{' '}
+                                                            {courses.find(c => c.id === selectedCourses[0])?.name || '—'}
+                                                        </p>
+                                                    )}
+                                                    {hasTeacher && (
+                                                        <p>
+                                                            <span className="font-semibold">Учитель:</span>{' '}
+                                                            {teachers.find((t: any) => t.id === selectedTeachers[0])?.first_name}{' '}
+                                                            {teachers.find((t: any) => t.id === selectedTeachers[0])?.last_name}
+                                                        </p>
+                                                    )}
+                                                    <p className="text-xs text-gray-500">
+                                                        Ниже — новое расписание для создаваемых групп. Снизу показано текущее расписание класса, чтобы избежать пересечений.
+                                                    </p>
+                                                </div>
                                             </div>
                                             <ScheduleBuilder
                                                 initialSlots={scheduleSlotsByClassroom[classroomId] || []}
+                                                existingSlots={[
+                                                    ...currentSchedule.map((s) => ({
+                                                        day_of_week: s.day_of_week,
+                                                        start_time: s.start_time,
+                                                        end_time: s.end_time,
+                                                        label: s.subject_group_teacher_fullname
+                                                            ? `Класс: ${s.subject_group_course_name} (${s.subject_group_teacher_fullname})`
+                                                            : `Класс: ${s.subject_group_course_name}`,
+                                                    })),
+                                                    ...teacherSchedule
+                                                        .filter(s => s.subject_group_classroom_id !== classroomId)
+                                                        .map((s) => ({
+                                                            day_of_week: s.day_of_week,
+                                                            start_time: s.start_time,
+                                                            end_time: s.end_time,
+                                                            label: `Учитель занят: ${s.subject_group_course_name}${s.subject_group_classroom_display ? ` (${s.subject_group_classroom_display})` : ''}`,
+                                                        })),
+                                                ]}
                                                 onChange={(slots) => handleScheduleChange(classroomId, slots)}
                                             />
+                                            <div className="mt-4 bg-white/80 rounded-lg border border-purple-100 p-3">
+                                                <p className="text-xs font-semibold text-gray-700 mb-2">
+                                                    Текущее расписание класса
+                                                </p>
+                                                {isScheduleLoading && (
+                                                    <p className="text-xs text-gray-500">Загрузка...</p>
+                                                )}
+                                                {!isScheduleLoading && currentSchedule.length === 0 && (
+                                                    <p className="text-xs text-gray-400">
+                                                        Для этого класса ещё нет слотов расписания.
+                                                    </p>
+                                                )}
+                                                {!isScheduleLoading && currentSchedule.length > 0 && (
+                                                    <ul className="space-y-1 max-h-40 overflow-y-auto text-xs text-gray-700">
+                                                        {currentSchedule.map((slot) => (
+                                                            <li key={slot.id} className="flex items-center justify-between gap-2">
+                                                                <span>
+                                                                    <span className="font-medium">
+                                                                        {slot.day_of_week_display}{' '}
+                                                                        {slot.start_time.slice(0,5)}–{slot.end_time.slice(0,5)}
+                                                                    </span>{' '}
+                                                                    · {slot.subject_group_course_name}
+                                                                    {slot.subject_group_teacher_fullname && (
+                                                                        <span className="text-gray-500">
+                                                                            {' '}({slot.subject_group_teacher_fullname})
+                                                                        </span>
+                                                                    )}
+                                                                    {slot.room && (
+                                                                        <span className="text-gray-500"> · каб. {slot.room}</span>
+                                                                    )}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
                                         </div>
                                     );
                                 })}

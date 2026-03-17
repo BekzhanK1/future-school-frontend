@@ -55,22 +55,6 @@ function getStatusText(
         return t('status.viewAnswers');
     }
 
-    // Debug: Log the actual boolean properties
-    console.log(
-        'getStatusText - item:',
-        item,
-        'is_available:',
-        'is_available' in item ? item.is_available : 'no is_available',
-        'is_deadline_passed:',
-        'is_deadline_passed' in item
-            ? item.is_deadline_passed
-            : 'no is_deadline_passed',
-        'is_submitted:',
-        'is_submitted' in item ? item.is_submitted : 'no is_submitted',
-        'kind:',
-        item.kind
-    );
-
     // For students, show status-based text using boolean properties
     if (item.kind === 'task') {
         const isSubmitted = 'is_submitted' in item ? item.is_submitted : false;
@@ -121,11 +105,7 @@ function handleFileView(
     filename: string,
     courseSectionId?: number
 ) {
-    console.log(fileData, filename, 'fileData', 'filename');
-
-    // Check if this is a directory
     if (fileData.type === 'directory') {
-        console.log('Opening directory in modal:', { fileData, filename });
 
         // Import the handleFileView from SubjectOverviewPanel to use the directory logic
         import('./SubjectOverviewPanel.client').then(
@@ -143,10 +123,7 @@ function handleFileView(
             }
         );
     } else {
-        // Regular file - open in file viewer
         const fileUrl = fileData.file;
-        console.log('Opening file in modal:', { fileData, fileUrl, filename });
-
         modalController.open('file-viewer', {
             file: {
                 url: fileUrl,
@@ -193,20 +170,6 @@ function TaskItem({
                 });
         }
     }, [isTeacher, isAdmin, item.id, item.template_assignment, item.is_unlinked_from_template]);
-    console.log(
-        'TaskItem - item:',
-        item,
-        'is_available:',
-        'is_available' in item ? item.is_available : 'no is_available',
-        'is_deadline_passed:',
-        'is_deadline_passed' in item
-            ? item.is_deadline_passed
-            : 'no is_deadline_passed',
-        'is_submitted:',
-        'is_submitted' in item ? item.is_submitted : 'no is_submitted',
-        'isTeacher:',
-        isTeacher
-    );
 
     const getButtonStyling = () => {
         if (isTeacher) {
@@ -580,7 +543,6 @@ export default function WeekMaterialsPanel({
         setIsExpanded(prev => !prev);
     }, []);
 
-    console.log(data, 'data');
     const sectionRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -606,12 +568,7 @@ export default function WeekMaterialsPanel({
         if (courseSectionId) {
             modalController.open('course-section-add-item', {
                 courseSectionId,
-                onItemCreated: (
-                    itemType: 'resource' | 'assignment' | 'test'
-                ) => {
-                    console.log(`${itemType} created, refreshing...`);
-                    onRefresh?.();
-                },
+                onItemCreated: () => { onRefresh?.(); },
             });
         }
     }, [courseSectionId, onRefresh]);
@@ -632,12 +589,7 @@ export default function WeekMaterialsPanel({
                 courseSectionId,
                 defaultDueAt,
                 weekDay: jsWeekDay,
-                onItemCreated: (
-                    itemType: 'resource' | 'assignment' | 'test'
-                ) => {
-                    console.log(
-                        `${itemType} created for ${defaultDueAt}, refreshing...`
-                    );
+                onItemCreated: () => {
                     onRefresh?.();
                 },
             });
@@ -671,32 +623,14 @@ export default function WeekMaterialsPanel({
                               ? `/tests/${itemId}/`
                               : `/resources/${itemId}/`;
                     await axiosInstance.delete(endpoint);
-                    console.log(`${itemType} deleted successfully`);
                 },
                 onSuccess: () => {
-                    console.log(`${itemType} deleted, refreshing...`);
                     onRefresh?.();
                 },
             });
         },
         [onRefresh, t]
     );
-
-    console.log('WeekMaterialsPanel data:', data);
-    console.log('Data structure:', JSON.stringify(data, null, 2));
-    console.log('Assignments:', data.assignments);
-    console.log('Tests:', data.tests);
-    console.log('Resources:', data.resources);
-
-    // Check if data has the expected structure
-    if (data.assignments && data.assignments.length > 0) {
-        console.log('First assignment:', data.assignments[0]);
-        console.log('Assignment keys:', Object.keys(data.assignments[0]));
-    }
-    if (data.tests && data.tests.length > 0) {
-        console.log('First test:', data.tests[0]);
-        console.log('Test keys:', Object.keys(data.tests[0]));
-    }
 
     // Группировка ресурсов по дню недели (0=Пн ... 6=Вс)
     const resourcesByWeekDay: Record<number, WeekItem[]> = {};
@@ -728,228 +662,206 @@ export default function WeekMaterialsPanel({
         'Воскресенье',
     ];
 
+    const dateRange = data.start_date && data.end_date
+        ? `${new Date(data.start_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(data.end_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`
+        : null;
+
+    const totalItems = (data.tests?.length ?? 0) + (data.assignments?.length ?? 0) + (data.resources?.length ?? 0);
+
     return (
         <section
             ref={sectionRef}
-            className="relative rounded-lg border border-gray-200 bg-white p-4 md:p-6 shadow-sm w-full overflow-hidden"
+            className={`relative rounded-2xl border bg-white shadow-sm w-full overflow-hidden transition-all ${
+                data.is_current ? 'border-violet-200' : 'border-gray-100'
+            }`}
             aria-labelledby="week-title"
         >
+            {/* Current week accent stripe */}
             {data.is_current && (
-                <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+                <div className="h-1 w-full bg-gradient-to-r from-violet-500 via-purple-400 to-indigo-500" />
             )}
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h2
-                    id="week-title"
-                    className="text-lg md:text-xl font-semibold text-gray-900"
-                >
-                    {data.title}
-                </h2>
 
-                <div className="flex items-center justify-center gap-2">
-                    {/* Быстрые кнопки по дням недели внутри секции */}
+            {/* Header */}
+            <button
+                type="button"
+                onClick={toggleExpanded}
+                onKeyDown={handleKeyDown}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50/60 transition-colors text-left"
+                aria-expanded={isExpanded}
+            >
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${data.is_current ? 'bg-violet-500' : 'bg-gray-300'}`} />
+                    <div className="min-w-0">
+                        <h2
+                            id="week-title"
+                            className="text-base font-bold text-gray-900 truncate"
+                        >
+                            {data.title}
+                        </h2>
+                        {(dateRange || data.is_current) && (
+                            <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-2">
+                                {dateRange && <span>{dateRange}</span>}
+                                {data.is_current && (
+                                    <span className="inline-flex items-center gap-1 text-violet-600 font-semibold">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse inline-block" />
+                                        Текущий
+                                    </span>
+                                )}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                    {/* Day quick-add buttons */}
                     {isTeacher && data.start_date && (
-                        <div className="hidden md:flex items-center gap-1 mr-2">
+                        <div className="hidden md:flex items-center gap-1">
                             {(() => {
-                                const start = new Date(
-                                    data.start_date as string
-                                );
+                                const start = new Date(data.start_date as string);
                                 const days: Date[] = [];
                                 for (let i = 0; i < 7; i++) {
                                     const d = new Date(start);
                                     d.setDate(start.getDate() + i);
                                     days.push(d);
                                 }
-                                const weekdayShort = [
-                                    'Пн',
-                                    'Вт',
-                                    'Ср',
-                                    'Чт',
-                                    'Пт',
-                                    'Сб',
-                                    'Вс',
-                                ];
+                                const weekdayShort = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
                                 return days.map((d, idx) => (
                                     <button
                                         key={`${d.toISOString()}-${idx}`}
                                         type="button"
-                                        onClick={() =>
-                                            handleAddItemForDate(d)
-                                        }
-                                        className="px-2 py-1 text-[11px] rounded-full border border-gray-200 text-gray-700 hover:bg-gray-100 bg-gray-50"
-                                        title={`Добавить материал на ${d.toLocaleDateString(
-                                            'ru-RU',
-                                            {
-                                                day: 'numeric',
-                                                month: 'short',
-                                            }
-                                        )}`}
+                                        onClick={() => handleAddItemForDate(d)}
+                                        className="px-1.5 py-0.5 text-[10px] rounded-md border border-gray-200 text-gray-600 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 bg-white transition-colors"
+                                        title={`Добавить на ${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`}
                                     >
-                                        <span className="font-medium mr-1">
-                                            {
-                                                weekdayShort[
-                                                    (d.getDay() + 6) % 7
-                                                ]
-                                            }
-                                        </span>
-                                        +
+                                        {weekdayShort[(d.getDay() + 6) % 7]}+
                                     </button>
                                 ));
                             })()}
                         </div>
                     )}
                     {isTeacher && (
-                        <>
-                            <button
-                                onClick={handleAddItem}
-                                className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
-                                title="Add Resource or Assignment"
-                            >
-                                <Plus className="w-4 h-4" />
-                            </button>
-                        </>
+                        <button
+                            onClick={handleAddItem}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors"
+                            title="Добавить материал"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                            Добавить
+                        </button>
                     )}
-                    <button
-                        onClick={toggleExpanded}
-                        onKeyDown={handleKeyDown}
-                        className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
-                        aria-expanded={isExpanded}
-                    >
-                        <ChevronDown
-                            className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
-                                isExpanded ? 'rotate-180' : ''
-                            }`}
-                        />
-                    </button>
+                    {totalItems > 0 && !isExpanded && (
+                        <span className="text-xs text-gray-400 font-medium">{totalItems} эл.</span>
+                    )}
+                    <ChevronDown
+                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                        }`}
+                    />
                 </div>
-            </div>
+            </button>
 
             {/* Content */}
             <div
-                className={`overflow-x-hidden transition-all duration-300 ease-in-out ${
-                    isExpanded
-                        ? 'max-h-[720px] opacity-100'
-                        : 'max-h-0 opacity-0'
+                className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'
                 }`}
             >
+            <div className="px-5 pb-5 border-t border-gray-50 pt-3 space-y-3">
+                {/* Tests */}
                 {data.tests && data.tests.length > 0 && (
-                    <div className="space-y-0 w-full overflow-hidden">
-                        {data.tests.map((item, index) => {
-                            return (
-                                <div key={item.id}>
-                                    {index > 0 && (
-                                        <div className="border-t border-gray-100" />
-                                    )}
-                                    <TestItem
-                                        item={
-                                            item as Extract<
-                                                WeekItem,
-                                                { kind: 'test' }
-                                            >
-                                        }
-                                        isTeacher={isTeacher}
-                                        onDelete={handleDeleteItem}
-                                        onRefresh={onRefresh}
-                                        t={t}
-                                    />
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-                {data.resources && data.resources.length > 0 && (
-                    <div className="space-y-4 w-full overflow-hidden">
-                        {/* По дням недели */}
-                        {Object.keys(resourcesByWeekDay)
-                            .map(k => parseInt(k, 10))
-                            .sort((a, b) => a - b)
-                            .map(weekDay => {
-                                const items = resourcesByWeekDay[weekDay] || [];
-                                if (!items.length) return null;
-                                return (
-                                    <div key={`wd-${weekDay}`}>
-                                        <div className="mb-2 text-sm font-semibold text-gray-700">
-                                            {weekdayLabels[weekDay] ?? 'День'}
-                                        </div>
-                                        <div className="space-y-0">
-                                            {items.map((item, index) => (
-                                                <div key={item.id}>
-                                                    {index > 0 && (
-                                                        <div className="border-t border-gray-100" />
-                                                    )}
-                                                    <SharedLinkItem
-                                                        item={item}
-                                                        isTeacher={isTeacher}
-                                                        onFileView={(
-                                                            fileData,
-                                                            filename
-                                                        ) =>
-                                                            handleFileView(
-                                                                fileData,
-                                                                filename,
-                                                                courseSectionId
-                                                            )
-                                                        }
-                                                        onDelete={handleDeleteItem}
-                                                        onRefresh={onRefresh}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                        {/* Ресурсы без week_day остаются без заголовков */}
-                        {resourcesWithoutDay.length > 0 && (
-                            <div className="space-y-0 w-full overflow-hidden">
-                                {resourcesWithoutDay.map((item, index) => (
-                                    <div key={item.id}>
-                                        {index > 0 && (
-                                            <div className="border-t border-gray-100" />
-                                        )}
-                                        <SharedLinkItem
-                                            item={item}
-                                            isTeacher={isTeacher}
-                                            onFileView={(fileData, filename) =>
-                                                handleFileView(
-                                                    fileData,
-                                                    filename,
-                                                    courseSectionId
-                                                )
-                                            }
-                                            onDelete={handleDeleteItem}
-                                            onRefresh={onRefresh}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-                {data.assignments && data.assignments.length > 0 && (
-                    <div className="space-y-0 w-full overflow-hidden">
-                        {data.assignments.map((item, index) => (
-                            <div key={item.id}>
-                                {index > 0 && (
-                                    <div className="border-t border-gray-100" />
-                                )}
-                                <TaskItem
-                                    item={
-                                        item as Extract<
-                                            WeekItem,
-                                            { kind: 'task' }
-                                        >
-                                    }
+                    <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Тесты</p>
+                        <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                            {data.tests.map((item) => (
+                                <TestItem
+                                    key={item.id}
+                                    item={item as Extract<WeekItem, { kind: 'test' }>}
                                     isTeacher={isTeacher}
                                     onDelete={handleDeleteItem}
                                     onRefresh={onRefresh}
                                     t={t}
                                 />
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
+
+                {/* Resources by day */}
+                {data.resources && data.resources.length > 0 && (
+                    <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Материалы</p>
+                        <div className="space-y-3">
+                            {Object.keys(resourcesByWeekDay)
+                                .map(k => parseInt(k, 10))
+                                .sort((a, b) => a - b)
+                                .map(weekDay => {
+                                    const items = resourcesByWeekDay[weekDay] || [];
+                                    if (!items.length) return null;
+                                    return (
+                                        <div key={`wd-${weekDay}`}>
+                                            <p className="text-xs font-semibold text-violet-500 mb-1">
+                                                {weekdayLabels[weekDay] ?? 'День'}
+                                            </p>
+                                            <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                                                {items.map((item) => (
+                                                    <SharedLinkItem
+                                                        key={item.id}
+                                                        item={item}
+                                                        isTeacher={isTeacher}
+                                                        onFileView={(fileData, filename) =>
+                                                            handleFileView(fileData, filename, courseSectionId)
+                                                        }
+                                                        onDelete={handleDeleteItem}
+                                                        onRefresh={onRefresh}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            {resourcesWithoutDay.length > 0 && (
+                                <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                                    {resourcesWithoutDay.map((item) => (
+                                        <SharedLinkItem
+                                            key={item.id}
+                                            item={item}
+                                            isTeacher={isTeacher}
+                                            onFileView={(fileData, filename) =>
+                                                handleFileView(fileData, filename, courseSectionId)
+                                            }
+                                            onDelete={handleDeleteItem}
+                                            onRefresh={onRefresh}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Assignments */}
+                {data.assignments && data.assignments.length > 0 && (
+                    <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Задания</p>
+                        <div className="rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                            {data.assignments.map((item) => (
+                                <TaskItem
+                                    key={item.id}
+                                    item={item as Extract<WeekItem, { kind: 'task' }>}
+                                    isTeacher={isTeacher}
+                                    onDelete={handleDeleteItem}
+                                    onRefresh={onRefresh}
+                                    t={t}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {totalItems === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">Нет материалов в этом разделе</p>
+                )}
+            </div>
             </div>
         </section>
     );

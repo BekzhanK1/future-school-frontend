@@ -8,7 +8,6 @@ import {
     Settings,
     LogOut,
     ChevronDown,
-    Languages,
 } from 'lucide-react';
 import Image from 'next/image';
 import { modalController } from '@/lib/modalController';
@@ -31,17 +30,21 @@ export default function Navbar() {
                 </div>
                 <div className="flex items-center gap-4">
                     {/* Language Selector */}
-                    <div className="relative">
-                        <select
-                            value={locale}
-                            onChange={e => setLocale(e.target.value as Locale)}
-                            className="bg-white rounded-xl px-4 py-2 h-[60px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer appearance-none pr-10 font-medium text-gray-700"
-                        >
-                            <option value="ru">Русский</option>
-                            <option value="en">English</option>
-                            <option value="kk">Қазақша</option>
-                        </select>
-                        <Languages className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1 h-[60px]">
+                        {(['ru', 'kk', 'en'] as Locale[]).map(lang => (
+                            <button
+                                key={lang}
+                                type="button"
+                                onClick={() => setLocale(lang)}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                                    locale === lang
+                                        ? 'bg-violet-600 text-white shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                                }`}
+                            >
+                                {lang === 'ru' ? 'Рус' : lang === 'kk' ? 'Қаз' : 'Eng'}
+                            </button>
+                        ))}
                     </div>
                     {/* <div
                         className="bg-white rounded-2xl px-4 py-2 h-[60px] cursor-pointer xs:block hidden"

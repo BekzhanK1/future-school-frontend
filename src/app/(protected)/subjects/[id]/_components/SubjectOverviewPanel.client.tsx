@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { ChevronDown, Info, Plus, MessageCircle } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
+import { ChevronDown, Info, Plus } from 'lucide-react';
 import type { SubjectOverviewData } from './SubjectOverviewCard';
 import { useUserState } from '@/contexts/UserContext';
 import { modalController } from '@/lib/modalController';
@@ -26,12 +25,7 @@ export function handleFileView(
     filename: string,
     courseSectionId?: number
 ) {
-    console.log(fileData, filename, 'fileData', 'filename');
-
-    // Check if this is a directory
     if (fileData.type === 'directory') {
-        console.log('Opening directory in modal:', { fileData, filename });
-
         // Fetch directory contents from API
         const resourceId =
             typeof fileData.id === 'string'
@@ -39,9 +33,7 @@ export function handleFileView(
                 : fileData.id || 0;
         fetchDirectoryContents(resourceId, filename, courseSectionId);
     } else {
-        // Regular file - open in file viewer
         const fileUrl = fileData.file;
-        console.log('Opening file in modal:', { fileData, fileUrl, filename });
 
         modalController.open('file-viewer', {
             file: {
@@ -331,15 +323,8 @@ export default function SubjectOverviewPanel({
 }: SubjectOverviewPanelProps) {
     const [isExpanded, setIsExpanded] = useState(true);
     const { user } = useUserState();
-    const router = useRouter();
-    const params = useParams();
     const { t } = useLocale();
     const isTeacher = user?.role === 'teacher';
-    const subjectId = params?.id as string;
-
-    const handleForumClick = () => {
-        router.push(`/subjects/${subjectId}/qa`);
-    };
 
     const toggleExpanded = useCallback(() => {
         setIsExpanded(prev => !prev);
@@ -412,94 +397,84 @@ export default function SubjectOverviewPanel({
         [onRefresh]
     );
 
-    console.log(data, 'data');
-
     return (
         <section
-            className="rounded-2xl border border-gray-200 bg-white p-4 md:p-6 shadow-sm w-full max-w-full overflow-hidden"
+            className="rounded-2xl border border-gray-100 bg-white shadow-sm w-full overflow-hidden"
             aria-labelledby="subject-overview-title"
         >
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h2
-                    id="subject-overview-title"
-                    className="text-lg md:text-xl font-semibold text-gray-900"
-                >
-                    {data.title}
-                </h2>
-
-                <div className="flex items-center justify-center gap-2">
-                    <button
-                        onClick={handleForumClick}
-                        className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
-                        title={t('qa.title')}
+            <button
+                type="button"
+                onClick={toggleExpanded}
+                onKeyDown={handleKeyDown}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50/60 transition-colors"
+                aria-expanded={isExpanded}
+            >
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                        <Info className="w-4 h-4 text-violet-600" />
+                    </div>
+                    <h2
+                        id="subject-overview-title"
+                        className="text-base font-bold text-gray-900"
                     >
-                        <MessageCircle className="w-5 h-5 text-purple-600" />
-                    </button>
+                        {data.title}
+                    </h2>
+                </div>
+
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     {isTeacher && (
                         <button
                             onClick={handleAddItem}
-                            className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
-                            title="Add Resource or Assignment"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors"
+                            title="Добавить материал"
                         >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3.5 h-3.5" />
+                            Добавить
                         </button>
                     )}
-                    <button
-                        onClick={toggleExpanded}
-                        onKeyDown={handleKeyDown}
-                        className="flex items-center justify-center w-10 h-10 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
-                        aria-expanded={isExpanded}
-                        aria-label={isExpanded ? 'Hide' : 'Show'}
-                    >
-                        <ChevronDown
-                            className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${
-                                isExpanded ? 'rotate-180' : ''
-                            }`}
-                        />
-                    </button>
+                    <ChevronDown
+                        className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                        }`}
+                    />
                 </div>
-            </div>
+            </button>
 
             {/* Content */}
             <div
-                className={`overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out ${
-                    isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                    isExpanded ? 'max-h-[480px] opacity-100' : 'max-h-0 opacity-0'
                 }`}
             >
-                {/* Description */}
-                {data.description && (
-                    <div className="flex items-start gap-3 mb-4 w-full overflow-hidden">
-                        <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                        <p className="text-sm md:text-base text-gray-700 leading-relaxed break-words min-w-0 flex-1">
+                <div className="px-5 pb-5 space-y-2 border-t border-gray-100 pt-4">
+                    {/* Description */}
+                    {data.description && (
+                        <p className="text-sm text-gray-600 leading-relaxed">
                             {data.description}
                         </p>
-                    </div>
-                )}
+                    )}
 
-                {data.resources && data.resources.length > 0 && (
-                    <div className="space-y-0 w-full overflow-hidden">
-                        {data.resources.map((resource, index) => (
-                            <div key={resource.id}>
-                                {index > 0 && (
-                                    <div className="border-t border-gray-100" />
-                                )}
+                    {data.resources && data.resources.length > 0 && (
+                        <div className="divide-y divide-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                            {data.resources.map((resource) => (
                                 <SharedLinkItem
+                                    key={resource.id}
                                     item={resource}
                                     isTeacher={isTeacher}
                                     onFileView={(fileData, filename) =>
-                                        handleFileView(
-                                            fileData,
-                                            filename,
-                                            courseSectionId
-                                        )
+                                        handleFileView(fileData, filename, courseSectionId)
                                     }
                                     onDelete={handleDeleteItem}
                                 />
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+
+                    {!data.description && (!data.resources || data.resources.length === 0) && (
+                        <p className="text-sm text-gray-400 italic">Нет материалов</p>
+                    )}
+                </div>
             </div>
         </section>
     );

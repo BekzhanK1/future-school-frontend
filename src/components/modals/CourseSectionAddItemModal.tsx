@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, BookOpen } from 'lucide-react';
+import { FileText, BookOpen, CheckCircle, AlertCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useUserState } from '@/contexts/UserContext';
 import { useLocale } from '@/contexts/LocaleContext';
@@ -14,11 +14,14 @@ interface CourseSectionAddItemModalProps {
     onClose: () => void;
     courseSectionId: number;
     onItemCreated?: (itemType: 'resource' | 'assignment' | 'test') => void;
-    /** Значение по умолчанию для дедлайна задания (datetime-local, YYYY-MM-DDTHH:MM) */
     defaultDueAt?: string;
-    /** День недели внутри секции (0=Monday, 6=Sunday) */
     weekDay?: number | null;
 }
+
+const TABS: { id: ItemType; label: string; icon: React.ReactNode }[] = [
+    { id: 'resource',   label: 'Материал',  icon: <FileText className="w-4 h-4" /> },
+    { id: 'assignment', label: 'Задание',   icon: <BookOpen className="w-4 h-4" /> },
+];
 
 export default function CourseSectionAddItemModal({
     isOpen,
@@ -48,7 +51,7 @@ export default function CourseSectionAddItemModal({
     };
 
     const handleError = (message: string) => {
-        setError(message);
+        setError(message || null);
     };
 
     const handleComplete = () => {
@@ -63,50 +66,41 @@ export default function CourseSectionAddItemModal({
             title={t('courseSectionModal.title')}
             maxWidth="max-w-2xl"
         >
-            <div className="space-y-6">
-                {/* Item Type Toggle */}
-                <div className="flex space-x-4">
-                    <button
-                        type="button"
-                        onClick={() => setItemType('resource')}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
-                            itemType === 'resource'
-                                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
-                        }`}
-                    >
-                        <FileText className="w-4 h-4" />
-                        <span>{t('courseSectionModal.resource')}</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setItemType('assignment')}
-                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
-                            itemType === 'assignment'
-                                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
-                        }`}
-                    >
-                        <BookOpen className="w-4 h-4" />
-                        <span>{t('courseSectionModal.assignment')}</span>
-                    </button>
+            <div className="space-y-5">
+                {/* Tab switcher */}
+                <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+                    {TABS.map(tab => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => { setItemType(tab.id); setError(null); setSuccess(null); }}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                itemType === tab.id
+                                    ? 'bg-white text-violet-700 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
 
-                {/* Error Message */}
+                {/* Feedback */}
                 {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                         <p className="text-sm text-red-600">{error}</p>
                     </div>
                 )}
-
-                {/* Success Message */}
                 {success && (
-                    <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                        <p className="text-sm text-green-600">{success}</p>
+                    <div className="flex items-start gap-2.5 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+                        <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                        <p className="text-sm text-green-700 font-medium">{success}</p>
                     </div>
                 )}
 
-                {/* Form Components */}
+                {/* Form */}
                 {itemType === 'resource' && (
                     <ResourceForm
                         courseSectionId={courseSectionId}
@@ -116,7 +110,6 @@ export default function CourseSectionAddItemModal({
                         onComplete={handleComplete}
                     />
                 )}
-
                 {itemType === 'assignment' && (
                     <AssignmentForm
                         courseSectionId={courseSectionId}

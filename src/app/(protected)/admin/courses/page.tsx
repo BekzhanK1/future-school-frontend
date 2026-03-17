@@ -1,14 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, BookOpen, Users, FileText, Search, Filter, Edit, Trash2, Layers } from 'lucide-react';
+import { Plus, BookOpen, Users, FileText, Search, Edit, Trash2, Layers, ChevronDown } from 'lucide-react';
 import { useUserState } from '@/contexts/UserContext';
 import { courseService } from '@/services/courseService';
 import type { CourseWithStats, Course } from '@/types/course';
 import { useLocale } from '@/contexts/LocaleContext';
 import CreateCourseModal from './_components/CreateCourseModal';
 import BulkCreateSubjectGroupsModal from './_components/BulkCreateSubjectGroupsModal';
+
+const LANG_META: Record<string, { label: string; bg: string; text: string }> = {
+    kazakh:  { label: 'Қаз', bg: 'bg-blue-100',   text: 'text-blue-700' },
+    russian: { label: 'Рус', bg: 'bg-red-100',    text: 'text-red-700' },
+    english: { label: 'Eng', bg: 'bg-green-100',  text: 'text-green-700' },
+};
+
+const GRADE_COLORS = [
+    'from-violet-500 to-purple-600',
+    'from-blue-500 to-indigo-600',
+    'from-emerald-500 to-teal-600',
+    'from-amber-500 to-orange-600',
+    'from-rose-500 to-pink-600',
+    'from-cyan-500 to-sky-600',
+];
+
+function gradeColor(grade: number): string {
+    return GRADE_COLORS[(grade - 1) % GRADE_COLORS.length];
+}
 
 export default function CoursesPage() {
     const router = useRouter();
@@ -23,16 +42,13 @@ export default function CoursesPage() {
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [isBulkCreateModalOpen, setIsBulkCreateModalOpen] = useState(false);
 
-    // Check access: only superadmin and schooladmin
     useEffect(() => {
         if (user && !['superadmin', 'schooladmin'].includes(user.role)) {
             router.push('/');
         }
     }, [user, router]);
 
-    useEffect(() => {
-        fetchCourses();
-    }, []);
+    useEffect(() => { fetchCourses(); }, []);
 
     const fetchCourses = async () => {
         try {
@@ -40,8 +56,7 @@ export default function CoursesPage() {
             setError(null);
             const data = await courseService.getAllCoursesWithStats();
             setCourses(data);
-        } catch (err) {
-            console.error('Error fetching courses:', err);
+        } catch {
             setError('Не удалось загрузить курсы');
         } finally {
             setLoading(false);
@@ -61,267 +76,237 @@ export default function CoursesPage() {
 
     const handleDelete = async (e: React.MouseEvent, course: CourseWithStats) => {
         e.stopPropagation();
-        
-        const confirmed = window.confirm(
-            `Вы уверены, что хотите удалить курс "${course.name}"?\n\nЭто действие нельзя отменить. Все шаблонные секции и связанные данные будут удалены.`
-        );
-        
-        if (!confirmed) {
-            return;
-        }
-        
+        if (!window.confirm(`Удалить курс "${course.name}"? Это нельзя отменить.`)) return;
         try {
             await courseService.deleteCourse(course.id);
             fetchCourses();
         } catch (error: any) {
-            console.error('Error deleting course:', error);
-            const errorMessage = error?.formattedMessage || 'Не удалось удалить курс';
-            alert(errorMessage);
+            alert(error?.formattedMessage || 'Не удалось удалить курс');
         }
     };
 
-    const filteredCourses = courses.filter((course) => {
-        const matchesSearch =
-            course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            course.course_code.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesGrade = gradeFilter === null || course.grade === gradeFilter;
-        return matchesSearch && matchesGrade;
-    });
+    const grades = useMemo(() => {
+        const set = new Set(courses.map(c => c.grade));
+        return Array.from(set).sort((a, b) => a - b);
+    }, [courses]);
+
+    const filteredCourses = useMemo(() => courses.filter((c) => {
+        const q = searchQuery.toLowerCase();
+        const matchesSearch = !q ||
+            c.name.toLowerCase().includes(q) ||
+            c.course_code.toLowerCase().includes(q);
+        return matchesSearch && (gradeFilter === null || c.grade === gradeFilter);
+    }), [courses, searchQuery, gradeFilter]);
 
     if (user && !['superadmin', 'schooladmin'].includes(user.role)) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                        Доступ запрещен
-                    </h2>
-                    <p className="text-gray-600">
-                        Только администраторы школы и супер-администратор могут просматривать эту страницу.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-50 p-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="animate-pulse space-y-4">
-                        <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-                        <div className="h-64 bg-gray-200 rounded"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-gray-50 p-8">
-                <div className="max-w-7xl mx-auto">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <p className="text-red-800">{error}</p>
-                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Доступ запрещён</h2>
+                    <p className="text-gray-500">Только администраторы могут просматривать эту страницу.</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8">
-            <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900">
-                                Управление курсами
-                            </h1>
-                            <p className="text-gray-600 mt-2">
-                                Создавайте и управляйте шаблонами курсов
-                            </p>
-                        </div>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setIsBulkCreateModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                            >
-                                <Layers className="w-5 h-5" />
-                                <span>Массовое создание SubjectGroup</span>
-                            </button>
-                            <button
-                                onClick={() => setIsCreateModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
-                            >
-                                <Plus className="w-5 h-5" />
-                                <span>Создать курс</span>
-                            </button>
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-gray-50/50">
+            <div className="mx-auto max-w-screen-xl px-4 py-6 space-y-6">
 
-                    {/* Filters */}
-                    <div className="flex items-center gap-4">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                            <input
-                                type="text"
-                                placeholder="Поиск по названию или коду курса..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Filter className="w-5 h-5 text-gray-400" />
-                            <select
-                                value={gradeFilter || ''}
-                                onChange={(e) =>
-                                    setGradeFilter(
-                                        e.target.value ? parseInt(e.target.value) : null
-                                    )
-                                }
-                                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            >
-                                <option value="">Все классы</option>
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
-                                    <option key={grade} value={grade}>
-                                        {grade} класс
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                {/* Header */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Курсы</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                            {loading ? '...' : `${courses.length} курс${courses.length === 1 ? '' : courses.length < 5 ? 'а' : 'ов'}`}
+                        </p>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                        <button
+                            onClick={() => setIsBulkCreateModalOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm font-medium shadow-sm"
+                        >
+                            <Layers className="w-4 h-4" />
+                            Назначить группы
+                        </button>
+                        <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors text-sm font-medium shadow-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Создать курс
+                        </button>
                     </div>
                 </div>
 
-                {/* Courses List */}
-                {filteredCourses.length === 0 ? (
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                        <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            Курсы не найдены
+                {/* Search + grade filter */}
+                <div className="flex flex-wrap gap-3 items-center">
+                    <div className="relative flex-1 min-w-48">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Поиск по названию или коду..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+                        />
+                    </div>
+                    {/* Grade pills */}
+                    <div className="flex gap-1.5 flex-wrap">
+                        <button
+                            type="button"
+                            onClick={() => setGradeFilter(null)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                gradeFilter === null
+                                    ? 'bg-violet-600 text-white shadow-sm'
+                                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            }`}
+                        >
+                            Все классы
+                        </button>
+                        {grades.map(g => (
+                            <button
+                                key={g}
+                                type="button"
+                                onClick={() => setGradeFilter(g)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                                    gradeFilter === g
+                                        ? 'bg-violet-600 text-white shadow-sm'
+                                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                {g}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Error state */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-800 text-sm">{error}</div>
+                )}
+
+                {/* Loading */}
+                {loading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
+                                <div className="h-2 bg-gray-200" />
+                                <div className="p-5 space-y-3">
+                                    <div className="h-5 bg-gray-200 rounded w-3/4" />
+                                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                                    <div className="h-3 bg-gray-100 rounded w-full" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filteredCourses.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-violet-50 flex items-center justify-center">
+                            <BookOpen className="w-8 h-8 text-violet-300" />
+                        </div>
+                        <h3 className="text-base font-semibold text-gray-900 mb-1">
+                            {searchQuery || gradeFilter ? 'Курсы не найдены' : 'Нет курсов'}
                         </h3>
-                        <p className="text-gray-600 mb-6">
-                            {searchQuery || gradeFilter
-                                ? 'Попробуйте изменить параметры поиска'
-                                : 'Создайте первый курс, чтобы начать'}
+                        <p className="text-sm text-gray-500 mb-5">
+                            {searchQuery || gradeFilter ? 'Попробуйте изменить параметры поиска' : 'Создайте первый курс'}
                         </p>
                         {!searchQuery && !gradeFilter && (
                             <button
                                 onClick={() => setIsCreateModalOpen(true)}
-                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors text-sm font-medium"
                             >
                                 Создать курс
                             </button>
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredCourses.map((course) => (
-                            <div
-                                key={course.id}
-                                className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div
-                                        onClick={() => router.push(`/admin/courses/${course.id}`)}
-                                        className="flex-1 cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                            <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-                                                {course.name}
-                                            </h3>
-                                            
-                                        </div>
-                                        <p className="text-sm text-gray-500">
-                                            {course.course_code}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 ml-2">
-                                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">
-                                            {course.grade} класс
-                                        </span>
-                                        {course.language && (
-                                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                                    course.language === 'kazakh' 
-                                                        ? 'bg-blue-100 text-blue-700' 
-                                                        : course.language === 'russian'
-                                                        ? 'bg-red-100 text-red-700'
-                                                        : 'bg-green-100 text-green-700'
-                                                }`}>
-                                                    {course.language === 'kazakh' ? 'Қаз' : 
-                                                     course.language === 'russian' ? 'Рус' : 
-                                                     course.language === 'english' ? 'Eng' : 
-                                                     course.language}
-                                                </span>
-                                            )}
-                                        <button
-                                            onClick={(e) => handleEdit(e, course)}
-                                            className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                            title="Редактировать курс"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={(e) => handleDelete(e, course)}
-                                            className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                            title="Удалить курс"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {course.description && (
-                                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                                        {course.description}
-                                    </p>
-                                )}
-
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {filteredCourses.map((course) => {
+                            const langMeta = LANG_META[course.language ?? ''];
+                            const gc = gradeColor(course.grade);
+                            return (
                                 <div
+                                    key={course.id}
+                                    className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-violet-100 transition-all cursor-pointer"
                                     onClick={() => router.push(`/admin/courses/${course.id}`)}
-                                    className="flex items-center gap-4 text-sm text-gray-600 cursor-pointer"
                                 >
-                                    <div className="flex items-center gap-1">
-                                        <Users className="w-4 h-4" />
-                                        <span>
-                                            {course.subject_groups_count || 0} классов
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                        <FileText className="w-4 h-4" />
-                                        <span>
-                                            {course.template_sections_count || 0} секций
-                                        </span>
+                                    {/* Grade accent stripe */}
+                                    <div className={`h-1.5 bg-gradient-to-r ${gc}`} />
+
+                                    <div className="p-5">
+                                        {/* Top row */}
+                                        <div className="flex items-start justify-between gap-2 mb-3">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br ${gc} text-white text-sm font-bold shadow-sm`}>
+                                                    {course.grade}
+                                                </span>
+                                                {langMeta && (
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${langMeta.bg} ${langMeta.text}`}>
+                                                        {langMeta.label}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                <button
+                                                    onClick={e => handleEdit(e, course)}
+                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                    title="Редактировать"
+                                                >
+                                                    <Edit className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={e => handleDelete(e, course)}
+                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                    title="Удалить"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Course name */}
+                                        <h3 className="text-base font-bold text-gray-900 leading-snug mb-0.5">
+                                            {course.name}
+                                        </h3>
+                                        <p className="text-xs text-gray-400 font-mono mb-2">{course.course_code}</p>
+
+                                        {course.description && (
+                                            <p className="text-xs text-gray-500 line-clamp-2 mb-3">
+                                                {course.description}
+                                            </p>
+                                        )}
+
+                                        {/* Stats footer */}
+                                        <div className="flex items-center gap-4 pt-3 border-t border-gray-50">
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                <Users className="w-3.5 h-3.5 text-gray-400" />
+                                                <span><span className="font-semibold text-gray-700">{course.subject_groups_count || 0}</span> классов</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                                <FileText className="w-3.5 h-3.5 text-gray-400" />
+                                                <span><span className="font-semibold text-gray-700">{course.template_sections_count || 0}</span> секций</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* Create/Edit Course Modal */}
             <CreateCourseModal
                 isOpen={isCreateModalOpen || !!editingCourse}
-                onClose={() => {
-                    setIsCreateModalOpen(false);
-                    setEditingCourse(null);
-                }}
+                onClose={() => { setIsCreateModalOpen(false); setEditingCourse(null); }}
                 onSuccess={handleCourseCreated}
                 course={editingCourse}
             />
-
-            {/* Bulk Create SubjectGroups Modal */}
             <BulkCreateSubjectGroupsModal
                 isOpen={isBulkCreateModalOpen}
                 onClose={() => setIsBulkCreateModalOpen(false)}
-                onSuccess={() => {
-                    setIsBulkCreateModalOpen(false);
-                    fetchCourses(); // Refresh to update stats
-                }}
+                onSuccess={() => { setIsBulkCreateModalOpen(false); fetchCourses(); }}
             />
         </div>
     );
 }
-

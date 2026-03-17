@@ -254,8 +254,6 @@ export default function SubjectsPage() {
     };
 
 
-    console.log(subjects);
-
     const filteredSubjects = useMemo(() => {
         return subjects.filter(subject => {
             const matchesSearch = (subject.course_name || subject.name)
@@ -270,14 +268,20 @@ export default function SubjectsPage() {
 
     const canEditColor = canEdit || user?.role === 'teacher';
 
-    // Show loading state while fetching subjects
     if (fetchLoading) {
         return (
-            <div className="mx-auto px-4 pb-8">
-                <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading subjects...</p>
+            <div className="min-h-screen bg-gray-50/50">
+                <div className="max-w-screen-xl mx-auto px-4 py-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                        {Array.from({ length: 8 }).map((_, i) => (
+                            <div key={i} className="bg-white rounded-2xl overflow-hidden animate-pulse">
+                                <div className="h-32 bg-gray-100" />
+                                <div className="p-4 space-y-2">
+                                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -285,25 +289,30 @@ export default function SubjectsPage() {
     }
 
     return (
-        <div className="mx-auto px-4 pb-8">
-            <div className="flex items-center justify-between mb-6 w-full">
-                <div className="flex items-center gap-4 xs:flex-row flex-col w-full">
+        <div className="min-h-screen bg-gray-50/50">
+            <div className="max-w-screen-xl mx-auto px-4 py-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                    <h1 className="text-xl font-bold text-gray-900">Предметы</h1>
+                    <p className="text-xs text-gray-500 mt-0.5">{filteredSubjects.length} предметов</p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
                     <SubjectSearch onSearchChange={setSearchQuery} />
                     <TeacherPicker
                         teachers={teachers}
                         selectedTeacher={selectedTeacher}
                         onTeacherChange={setSelectedTeacher}
                     />
+                    {canEdit && (
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-xl hover:bg-violet-700 transition-colors text-sm font-medium"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Добавить
+                        </button>
+                    )}
                 </div>
-                {canEdit && (
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Add Subject
-                    </button>
-                )}
             </div>
             <SubjectList
                 subjects={filteredSubjects}
@@ -337,6 +346,7 @@ export default function SubjectsPage() {
                 }}
                 loading={loading}
             />
+        </div>
         </div>
     );
 }

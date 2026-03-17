@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { modalController } from '@/lib/modalController';
 import type { EventModalData } from '@/lib/modalController';
 import { useLocale } from '@/contexts/LocaleContext';
@@ -29,8 +30,21 @@ interface Event {
 interface DayScheduleProps {
     date?: Date;
     events?: Event[];
-    /** Сдвиг текущего дня в сайдбаре (например, -1 / +1) */
     onChangeDate?: (delta: number) => void;
+}
+
+const TYPE_META: Record<string, { label: string; icon: string; accent: string }> = {
+    schedule: { label: 'Урок',     icon: '📚', accent: '#7c3aed' },
+    test:     { label: 'Тест',     icon: '📝', accent: '#0284c7' },
+    assignment: { label: 'Задание', icon: '📋', accent: '#d97706' },
+    meeting:  { label: 'Встреча',  icon: '👥', accent: '#059669' },
+    gathering:{ label: 'Встреча',  icon: '👥', accent: '#059669' },
+    school_event: { label: 'Событие', icon: '🎓', accent: '#db2777' },
+    other:    { label: 'Событие',  icon: '📌', accent: '#6b7280' },
+};
+
+function getTypeMeta(type?: string) {
+    return TYPE_META[type ?? ''] ?? { label: type ?? '', icon: '📌', accent: '#6b7280' };
 }
 
 export default function DaySchedule({
@@ -45,187 +59,180 @@ export default function DaySchedule({
     const dayEvents = useMemo(() => {
         const dateString = date.toISOString().split('T')[0];
         return events
-            .filter(event => {
-                // Only show exams, tests, and lessons (not homework)
-                const isHomework = event.title === 'Домашнее Задание';
-                const isSameDate = event.start === dateString;
-                return !isHomework && isSameDate;
+            .filter(ev => {
+                const isHomework = ev.title === 'Домашнее Задание';
+                return !isHomework && ev.start === dateString;
             })
             .sort((a, b) => {
-                const timeA = new Date(`2000-01-01T${a.time}`);
-                const timeB = new Date(`2000-01-01T${b.time}`);
-                return timeA.getTime() - timeB.getTime();
+                const tA = a.time?.replace(':', '') ?? '0000';
+                const tB = b.time?.replace(':', '') ?? '0000';
+                return tA.localeCompare(tB);
             });
     }, [date, events]);
 
-    const handleEventClick = (event: Event) => {
+    const handleEventClick = (ev: Event) => {
         const eventData: EventModalData = {
-            title: event.title,
-            start: event.start,
-            subject: event.subject,
-            teacher: event.teacher,
-            time: event.time,
-            description: event.description,
-            room: event.room,
-            classroom: event.classroom,
-            target_audience: event.target_audience,
-            subject_group_display: event.subject_group_display,
-            target_users: event.target_users,
-            url: event.url,
-            type: (event as any).type,
+            title: ev.title,
+            start: ev.start,
+            subject: ev.subject,
+            teacher: ev.teacher,
+            time: ev.time,
+            description: ev.description,
+            room: ev.room,
+            classroom: ev.classroom,
+            target_audience: ev.target_audience,
+            subject_group_display: ev.subject_group_display,
+            target_users: ev.target_users,
+            url: ev.url,
+            type: (ev as any).type,
         };
         modalController.open('event-modal', eventData);
     };
 
-    const getEventTypeColor = (event: Event) => {
-        // Для уроков используем цвет, пришедший из календаря
-        if ((event as any).type === 'schedule') {
-            return event.backgroundColor || 'rgb(220, 252, 231)';
-        }
-
-        const title = event.title;
-        if (title === 'Домашнее Задание') return 'rgb(255, 237, 213)';
-        if (title === 'Экзамен') return 'rgb(254, 226, 226)';
-        if (title === 'Тест') return 'rgb(224, 242, 254)';
-        if (title === 'Урок') return 'rgb(220, 252, 231)';
-        return 'rgb(255, 237, 213)';
-    };
-
-    const getEventTypeText = (title: string) => {
-        if (title === 'Домашнее Задание' || title === t('daySchedule.homework'))
-            return t('daySchedule.homeworkShort');
-        if (title === 'Экзамен' || title === t('daySchedule.exam'))
-            return t('daySchedule.examShort');
-        if (title === 'Тест' || title === t('daySchedule.test'))
-            return t('daySchedule.testShort');
-        if (title === 'Урок' || title === t('daySchedule.lesson'))
-            return t('daySchedule.lessonShort');
-        return title;
-    };
-
-    const formatDate = (date: Date) => {
+    const formatDate = (d: Date) => {
         const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
-        return date.toLocaleDateString(localeCode, {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        });
+        return d.toLocaleDateString(localeCode, { day: 'numeric', month: 'long' });
     };
 
-    const handlePrevDay = () => {
-        if (!onChangeDate) return;
-        onChangeDate(-1);
-    };
+    const isToday = useMemo(() => {
+        const today = new Date();
+        return (
+            date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear()
+        );
+    }, [date]);
 
-    const handleNextDay = () => {
-        if (!onChangeDate) return;
-        onChangeDate(1);
-    };
+    const dayName = useMemo(() => {
+        const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
+        return date.toLocaleDateString(localeCode, { weekday: 'long' });
+    }, [date, locale]);
 
     return (
-        <div className="w-full bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">
-                    {t('daySchedule.title')} {formatDate(date)}
-                </h2>
-                <div className="flex items-center gap-2">
+        <div className="flex flex-col bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-2 bg-gradient-to-r from-violet-50 to-white">
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-violet-500 uppercase tracking-wider capitalize">
+                        {dayName}
+                    </p>
+                    <h2 className="text-base font-bold text-gray-900 truncate mt-0.5">
+                        {isToday ? (
+                            <span className="flex items-center gap-1.5">
+                                <span className="inline-block w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                                Сегодня · {formatDate(date)}
+                            </span>
+                        ) : formatDate(date)}
+                    </h2>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
                     <button
                         type="button"
-                        onClick={handlePrevDay}
-                        className="px-2 py-1 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => onChangeDate?.(-1)}
+                        className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
                     >
-                        {t('common.prev') ?? '←'}
+                        <ChevronLeft className="w-3.5 h-3.5" />
                     </button>
                     <button
                         type="button"
-                        onClick={handleNextDay}
-                        className="px-2 py-1 rounded-md border border-gray-200 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={() => onChangeDate?.(1)}
+                        className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
                     >
-                        {t('common.next') ?? '→'}
+                        <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
 
-            <div className="p-4 sm:h-80 overflow-y-auto h-auto">
+            {/* Event count badge */}
+            {dayEvents.length > 0 && (
+                <div className="px-5 pt-3 pb-0">
+                    <span className="text-xs text-gray-400">
+                        {dayEvents.length} {dayEvents.length === 1 ? 'событие' : dayEvents.length < 5 ? 'события' : 'событий'}
+                    </span>
+                </div>
+            )}
+
+            {/* Events list */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-80">
                 {dayEvents.length === 0 ? (
-                    <div className="text-center py-8">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                            <svg
-                                className="w-8 h-8 text-gray-400"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                />
-                            </svg>
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="w-14 h-14 rounded-full bg-violet-50 flex items-center justify-center mb-3">
+                            <CalendarDays className="w-7 h-7 text-violet-300" />
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            {t('daySchedule.noEvents')}
-                        </h3>
-                        <p className="text-gray-500">
-                            {t('daySchedule.noEventsPlanned')}
-                        </p>
+                        <p className="text-sm font-medium text-gray-500">{t('daySchedule.noEvents')}</p>
+                        <p className="text-xs text-gray-400 mt-1">{t('daySchedule.noEventsPlanned')}</p>
                     </div>
                 ) : (
-                    <div className="space-y-2">
-                        {dayEvents.map(event => (
-                            <div
-                                key={event.id}
-                                onClick={() => handleEventClick(event)}
-                                className="group relative p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:border-blue-300"
-                                tabIndex={0}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        handleEventClick(event);
-                                    }
-                                }}
+                    dayEvents.map((ev) => {
+                        const meta = getTypeMeta(ev.type);
+                        const timeStart = ev.time?.split(' - ')[0] ?? ev.time ?? '';
+                        const timeEnd = ev.time?.split(' - ')[1] ?? '';
+
+                        return (
+                            <button
+                                key={ev.id}
+                                type="button"
+                                onClick={() => handleEventClick(ev)}
+                                className="w-full text-left group flex items-stretch gap-3 rounded-xl border border-gray-100 p-3 hover:border-violet-200 hover:bg-violet-50/40 hover:shadow-sm transition-all"
                             >
-                                <div className="flex items-center justify-between">
-                                    {/* Left side - Time and Type */}
-                                    <div className="flex items-center space-x-3">
-                                        <div className="text-sm font-semibold text-gray-900 min-w-[45px]">
-                                            {event.time}
-                                        </div>
-                                        <div
-                                            className="px-2 py-1 rounded-md text-xs font-medium"
+                                {/* Color stripe */}
+                                <div
+                                    className="w-1 rounded-full shrink-0 self-stretch"
+                                    style={{ backgroundColor: ev.borderColor || meta.accent }}
+                                />
+
+                                {/* Time column */}
+                                <div className="shrink-0 w-14 flex flex-col items-start">
+                                    <span className="text-xs font-bold text-gray-800 leading-none">
+                                        {timeStart}
+                                    </span>
+                                    {timeEnd && (
+                                        <span className="text-[10px] text-gray-400 mt-0.5">
+                                            {timeEnd}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 mb-0.5">
+                                        <span
+                                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
                                             style={{
-                                                backgroundColor: getEventTypeColor(
-                                                    event
-                                                ),
-                                                color: '#374151',
+                                                backgroundColor: `${ev.backgroundColor || '#ede9fe'}`,
+                                                color: meta.accent,
                                             }}
                                         >
-                                            {getEventTypeText(event.title)}
-                                        </div>
+                                            {meta.label}
+                                        </span>
                                     </div>
-
-                                    {/* Right side - Subject, Class/Room (for teacher), Teacher */}
-                                    <div className="flex-1 ml-4 text-right">
-                                        <div className="text-sm font-medium text-gray-900 truncate">
-                                            {event.subject}
-                                        </div>
-                                        {isTeacher && (event.classroom || event.room) && (
-                                            <div className="text-xs text-gray-600 truncate">
-                                                {[event.classroom, event.room].filter(Boolean).join(' · ')}
-                                            </div>
+                                    <p className="text-sm font-semibold text-gray-900 truncate leading-snug">
+                                        {ev.subject || ev.title}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                        {isTeacher && ev.classroom && (
+                                            <span className="text-[11px] text-gray-500 truncate">
+                                                {ev.classroom}
+                                            </span>
                                         )}
-                                        <div className="text-xs text-gray-500 truncate">
-                                            {event.teacher}
-                                        </div>
+                                        {ev.room && (
+                                            <span className="text-[11px] text-gray-400">
+                                                каб. {ev.room}
+                                            </span>
+                                        )}
+                                        {!isTeacher && ev.teacher && (
+                                            <span className="text-[11px] text-gray-400 truncate">
+                                                {ev.teacher}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Hover Effect */}
-                                <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-5 rounded-lg transition-opacity duration-200 pointer-events-none"></div>
-                            </div>
-                        ))}
-                    </div>
+                                {/* Arrow */}
+                                <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-violet-400 self-center shrink-0 transition-colors" />
+                            </button>
+                        );
+                    })
                 )}
             </div>
         </div>
