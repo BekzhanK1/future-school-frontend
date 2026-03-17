@@ -17,6 +17,7 @@ interface Student {
 interface StudentAttendance {
     status: 'present' | 'excused' | 'not_present';
     notes: string;
+    formativeGrade?: number | null;
 }
 
 interface AttendanceModalProps {
@@ -24,6 +25,7 @@ interface AttendanceModalProps {
     onClose: () => void;
     subjectGroupId: number;
     onSuccess: () => void;
+    initialDate?: Date;
 }
 
 export default function AttendanceModal({
@@ -31,39 +33,66 @@ export default function AttendanceModal({
     onClose,
     subjectGroupId,
     onSuccess,
+    initialDate,
 }: AttendanceModalProps) {
     const [students, setStudents] = useState<Student[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [attendance, setAttendance] = useState<Record<number, StudentAttendance>>({});
-    const [date, setDate] = useState<Date | null>(new Date());
+    const [date, setDate] = useState<Date | null>(initialDate || new Date());
 
     useEffect(() => {
         if (isOpen) {
-            // Reset date and attendance when modal opens
-            setDate(new Date());
+            setLoading(true);
             setAttendance({});
-            fetchStudents();
+            const targetDate = initialDate || new Date();
+            setDate(targetDate);
+            fetchStudentsAndGrades(targetDate);
         }
-    }, [isOpen, subjectGroupId]);
+    }, [isOpen, subjectGroupId, initialDate]);
 
-    const fetchStudents = async () => {
+    useEffect(() => {
+        if (isOpen && date) {
+            fetchStudentsAndGrades(date);
+        }
+    }, [date]);
+
+    const fetchStudentsAndGrades = async (selectedDate: Date) => {
         try {
             setLoading(true);
-            const response = await axiosInstance.get(`/subject-groups/${subjectGroupId}/members/`);
-            const allStudents = response.data.students || [];
+            const [studentsRes, gradesRes] = await Promise.all([
+                axiosInstance.get(`/subject-groups/${subjectGroupId}/members/`),
+                axiosInstance.get(`/manual-grades/by-date/`, {
+                    params: {
+                        subject_group_id: subjectGroupId,
+                        date: selectedDate.toISOString().split('T')[0]
+                    }
+                })
+            ]);
+
+            const allStudents = studentsRes.data.students || [];
             setStudents(allStudents);
             
-            const initialAttendance: Record<number, StudentAttendance> = {};
+            // Map existing grades
+            const gradesMap: Record<number, number | null> = {};
+            if (gradesRes.data) {
+                gradesRes.data.forEach((grade: any) => {
+                    gradesMap[grade.student] = grade.value;
+                });
+            }
+
+            const newAttendance: Record<number, StudentAttendance> = {};
             allStudents.forEach((student: Student) => {
-                initialAttendance[student.id] = {
+                // Keep the current UI state if the user already started editing, otherwise reset
+                newAttendance[student.id] = {
                     status: 'present',
                     notes: '',
+                    formativeGrade: gradesMap[student.id] ?? null,
                 };
             });
-            setAttendance(initialAttendance);
+            setAttendance(newAttendance);
         } catch (err) {
-            console.error('Error fetching students:', err);
+            console.error('Error fetching students and grades:', err);
         } finally {
             setLoading(false);
         }
@@ -90,6 +119,23 @@ export default function AttendanceModal({
         }));
     };
 
+    const handleGradeChange = (studentId: number, gradeStr: string) => {
+        let val: number | null = null;
+        if (gradeStr.trim() !== '') {
+            val = parseInt(gradeStr, 10);
+            if (isNaN(val) || val < 0) val = 0;
+            if (val > 10) val = 10;
+        }
+
+        setAttendance(prev => ({
+            ...prev,
+            [studentId]: {
+                ...prev[studentId],
+                formativeGrade: val,
+            },
+        }));
+    };
+
     const handleSubmit = async () => {
         if (!date) {
             alert('Выберите дату');
@@ -108,17 +154,38 @@ export default function AttendanceModal({
                 };
             });
 
-            // Send all records at once
-            await axiosInstance.post('/attendance/', {
-                subject_group: subjectGroupId,
-                notes: '',
-                records: records,
-            });
-            alert('✅ Посещаемость успешно записана!');
+            const dateStr = date.toISOString().split('T')[0];
+
+            // Formative assessment bulk create payload
+            const gradesPayload = {
+                subject_group_id: subjectGroupId,
+                graded_at: dateStr,
+                grades: students.map(student => {
+                    const studentAttendance = attendance[student.id] || {};
+                    return {
+                        student_id: student.id,
+                        value: studentAttendance.formativeGrade ?? null,
+                        max_value: 10,
+                    };
+                }),
+            };
+
+            // Send both requests parallelly
+            await Promise.all([
+                axiosInstance.post('/attendance/', {
+                    subject_group: subjectGroupId,
+                    notes: '',
+                    taken_at: dateStr + 'T12:00:00Z', // Adjust as needed
+                    records: records,
+                }),
+                axiosInstance.post('/manual-grades/bulk-create-or-update/', gradesPayload)
+            ]);
+            
+            alert('✅ Посещаемость и ФО успешно сохранены!');
             onSuccess();
             onClose();
         } catch (err: any) {
-            console.error('Error submitting attendance:', err);
+            console.error('Error submitting records:', err);
             alert('❌ Ошибка при сохранении: ' + (err.response?.data?.detail || err.message));
         } finally {
             setSubmitting(false);
@@ -145,7 +212,7 @@ export default function AttendanceModal({
     if (!isOpen) return null;
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Взять посещаемость" maxWidth="max-w-5xl">
+        <Modal isOpen={isOpen} onClose={onClose} title="Взять посещаемость и ФО" maxWidth="max-w-5xl">
             <div className="space-y-4 max-h-[80vh] flex flex-col">
                 {/* Date Picker */}
                 <div>
@@ -259,6 +326,19 @@ export default function AttendanceModal({
                                             </div>
                                         </div>
                                     )}
+                                    {/* Formative Grade Input */}
+                                    <div className="flex-shrink-0 flex items-center gap-2 border-l pl-4 ml-4">
+                                        <label className="text-sm text-gray-600 font-medium">ФО (из 10):</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="10"
+                                            value={attendance[student.id]?.formativeGrade ?? ''}
+                                            onChange={(e) => handleGradeChange(student.id, e.target.value)}
+                                            placeholder="Нет"
+                                            className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-center"
+                                        />
+                                    </div>
                                 </div>
                             ))
                         )}

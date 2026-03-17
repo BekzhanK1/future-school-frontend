@@ -585,7 +585,7 @@
         "noGrades": "No grades",
         "sourceAssignment": "Assignment",
         "sourceTest": "Test",
-        "sourceManual": "Manual grade",
+        "sourceManual": "Formative Assessment",
         "addGrade": "Add grade",
         "weightsSum": "Sum:",
         "distributeEvenly": "Distribute evenly",
@@ -693,7 +693,18 @@
         "statusExcused": "Excused",
         "statusAbsent": "Absent",
         "close": "Close",
-        "noNote": "—"
+        "noNote": "—",
+        "byDatesTitle": "Attendance records by date",
+        "byDatesSubtitle": "Click a date to view the list of students and lesson grades",
+        "columnDate": "Date",
+        "columnTotalStudents": "Total students",
+        "classAttendanceShort": "% attend.",
+        "columnActions": "Actions",
+        "noDatesData": "No attendance records yet",
+        "viewDetails": "Details",
+        "noSession": "No session",
+        "byStudentsTitle": "Attendance by students",
+        "columnTotalLessons": "Total lessons"
     },
     "qa": {
         "title": "Questions & Answers",

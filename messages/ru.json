@@ -593,7 +593,7 @@
         "noGrades": "Нет оценок",
         "sourceAssignment": "Задание",
         "sourceTest": "Тест",
-        "sourceManual": "Ручная оценка",
+        "sourceManual": "Формативное оценивание",
         "addGrade": "Поставить оценку",
         "weightsSum": "Сумма:",
         "distributeEvenly": "Распределить поровну",
@@ -701,7 +701,18 @@
         "statusExcused": "Уважительная",
         "statusAbsent": "Отсутствовал",
         "close": "Закрыть",
-        "noNote": "—"
+        "noNote": "—",
+        "byDatesTitle": "Записи посещаемости по датам",
+        "byDatesSubtitle": "Нажмите на дату, чтобы посмотреть список учеников и оценки за занятие",
+        "columnDate": "Дата",
+        "columnTotalStudents": "Всего студентов",
+        "classAttendanceShort": "% посещ.",
+        "columnActions": "Действия",
+        "noDatesData": "Пока нет записей посещаемости",
+        "viewDetails": "Детали",
+        "noSession": "Нет сессии",
+        "byStudentsTitle": "Посещаемость по ученикам",
+        "columnTotalLessons": "Всего занятий"
     },
     "qa": {
         "title": "Вопросы и Ответы",

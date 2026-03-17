@@ -18,6 +18,7 @@ import {
     BarChart3,
 } from 'lucide-react';
 import AddManualGradeModal from './_components/AddManualGradeModal';
+import GradeCategoriesManager from './_components/GradeCategoriesManager';
 
 interface Classroom {
     id: number;
@@ -53,6 +54,7 @@ interface GradeBookEntry {
     feedback: string | null;
     graded_by_username?: string | null;
     grade_type?: string;
+    category_name?: string | null;
 }
 
 interface StudentStats {
@@ -103,11 +105,6 @@ export default function DiaryPage() {
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [loadingGradeBook, setLoadingGradeBook] = useState(false);
     const [showAddGradeModal, setShowAddGradeModal] = useState(false);
-    const [gradeWeights, setGradeWeights] = useState<GradeWeightItem[]>([]);
-    const [loadingWeights, setLoadingWeights] = useState(false);
-    const [weightsDraft, setWeightsDraft] = useState<Record<string, number>>({ assignment: 34, test: 33, manual: 33 });
-    const [savingWeights, setSavingWeights] = useState(false);
-    const [weightsError, setWeightsError] = useState<string | null>(null);
     const [studentEntriesBySubject, setStudentEntriesBySubject] = useState<Record<number, GradeBookEntry[]>>({});
     const [loadingStudentSummaries, setLoadingStudentSummaries] = useState(false);
 
@@ -245,35 +242,10 @@ export default function DiaryPage() {
         }).finally(() => setLoadingStudentSummaries(false));
     }, [isStudent, user?.id, subjectGroups]);
 
-    // Fetch grade weights for selected subject (all roles; student sees weights for their avg)
-    useEffect(() => {
-        if (!selectedSubjectGroupId) {
-            setGradeWeights([]);
-            setWeightsDraft({ assignment: 34, test: 33, manual: 33 });
-            return;
-        }
-        setLoadingWeights(true);
-        axiosInstance
-            .get('/grade-weights/', { params: { subject_group: selectedSubjectGroupId } })
-            .then((res) => {
-                const list = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
-                setGradeWeights(list);
-                const draft: Record<string, number> = { assignment: 34, test: 33, manual: 33 };
-                list.forEach((w: GradeWeightItem) => {
-                    draft[w.source_type] = w.weight;
-                });
-                setWeightsDraft(draft);
-            })
-            .catch(() => {
-                setGradeWeights([]);
-                setWeightsDraft({ assignment: 34, test: 33, manual: 33 });
-            })
-            .finally(() => setLoadingWeights(false));
-    }, [selectedSubjectGroupId]);
-
     const selectedSubject = subjectGroups.find((s) => s.id === selectedSubjectGroupId);
 
-    const getWeight = (sourceType: string): number => weightsDraft[sourceType] ?? 1;
+    // Categories are now handled by GradeCategoriesManager
+    const getWeight = (sourceType: string): number => 1;
 
     // For student: сводка по каждому предмету и общий средний
     const studentSubjectSummaryList = useMemo((): SubjectSummary[] => {
@@ -324,7 +296,7 @@ export default function DiaryPage() {
             avgPercent: sumWeights > 0 ? Math.round(sumWeighted / sumWeights) : null,
             studentsWithGrades: uniqueStudents,
         };
-    }, [showClassView, entries, weightsDraft]);
+    }, [showClassView, entries]);
 
     // Unique "works" (grade sources) from entries for table columns: assignment/test/manual by (source_type, source_id)
     interface WorkColumn {
@@ -407,7 +379,7 @@ export default function DiaryPage() {
                 const nameB = `${b.student.last_name} ${b.student.first_name}`;
                 return nameA.localeCompare(nameB);
             });
-    }, [showClassView, students, entries, weightsDraft]);
+    }, [showClassView, students, entries]);
 
     // Entries for selected student (for class view) or all entries (student view / when one student filter)
     const displayedEntries = useMemo(() => {
@@ -438,44 +410,6 @@ export default function DiaryPage() {
             .get('/manual-grades/grade-book/', { params })
             .then((res) => setEntries(res.data?.results ?? []))
             .finally(() => setLoadingGradeBook(false));
-    };
-
-    const weightsSum = (weightsDraft.assignment ?? 0) + (weightsDraft.test ?? 0) + (weightsDraft.manual ?? 0);
-
-    const handleDistributeWeights = () => {
-        setWeightsDraft({ assignment: 34, test: 33, manual: 33 });
-        setWeightsError(null);
-    };
-
-    const handleSaveWeights = async () => {
-        if (!selectedSubjectGroupId || !(isAdmin || isTeacher)) return;
-        if (weightsSum !== 100) {
-            setWeightsError(t('diary.weightsSumError'));
-            return;
-        }
-        setWeightsError(null);
-        setSavingWeights(true);
-        try {
-            const res = await axiosInstance.post('/grade-weights/set-weights/', {
-                subject_group: selectedSubjectGroupId,
-                assignment: Math.max(0, Math.min(100, Math.round(weightsDraft.assignment ?? 0))),
-                test: Math.max(0, Math.min(100, Math.round(weightsDraft.test ?? 0))),
-                manual: Math.max(0, Math.min(100, Math.round(weightsDraft.manual ?? 0))),
-            });
-            const list = Array.isArray(res.data) ? res.data : [];
-            setGradeWeights(list);
-            const draft: Record<string, number> = { assignment: 34, test: 33, manual: 33 };
-            list.forEach((w: GradeWeightItem) => {
-                draft[w.source_type] = w.weight;
-            });
-            setWeightsDraft(draft);
-        } catch (err: unknown) {
-            const res = (err as { response?: { data?: Record<string, string[]> } })?.response?.data;
-            const msg = res?.assignment?.[0] ?? res?.weight?.[0] ?? (err as { formattedMessage?: string })?.formattedMessage ?? t('diary.saveWeightsError');
-            setWeightsError(msg);
-        } finally {
-            setSavingWeights(false);
-        }
     };
 
     if (!user) {
@@ -560,65 +494,10 @@ export default function DiaryPage() {
                 </div>
             </div>
 
-            {/* Веса оценок (только для учителя/админа) */}
+            {/* Grade Categories Settings */}
             {canAddGrade && selectedSubjectGroupId && (
-                <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6 shadow-sm">
-                    <h3 className="text-sm font-semibold text-gray-800 mb-3">{t('diary.gradeWeightsTitle')}</h3>
-                    <p className="text-xs text-gray-500 mb-3">
-                        {t('diary.weightsHint')}
-                    </p>
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-[260px] text-sm">
-                            <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">{t('diary.gradeType')}</th>
-                                    <th className="text-left py-2 px-3 text-sm font-medium text-gray-700 w-24">{t('diary.weightPercent')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {SOURCE_TYPES.map(({ value, label }) => (
-                                    <tr key={value} className="border-b border-gray-100">
-                                        <td className="py-2 px-3 text-sm text-gray-900">{label}</td>
-                                        <td className="py-2 px-3">
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                max={100}
-                                                value={weightsDraft[value] ?? 0}
-                                                onChange={(e) => {
-                                                    const v = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
-                                                    setWeightsDraft((prev) => ({ ...prev, [value]: v }));
-                                                    setWeightsError(null);
-                                                }}
-                                                className="w-16 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="mt-3 flex items-center gap-3 flex-wrap">
-                        <span className={`text-sm ${weightsSum === 100 ? 'text-gray-600' : 'text-amber-600'}`}>
-                            {t('diary.weightsSum')} {weightsSum}%
-                        </span>
-                        <button
-                            type="button"
-                            onClick={handleDistributeWeights}
-                            className="text-sm text-gray-600 hover:text-gray-900 underline"
-                        >
-                            {t('diary.distributeEvenly')}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleSaveWeights}
-                            disabled={savingWeights || weightsSum !== 100}
-                            className="px-3 py-1.5 text-sm bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
-                        >
-                            {savingWeights ? t('actions.saving') : t('profile.save')}
-                        </button>
-                    </div>
-                    {weightsError && <p className="mt-2 text-sm text-red-600">{weightsError}</p>}
+                <div className="mb-4 sm:mb-6">
+                    <GradeCategoriesManager subjectGroupId={Number(selectedSubjectGroupId)} />
                 </div>
             )}
 
@@ -876,7 +755,11 @@ export default function DiaryPage() {
                                                 <td className="px-4 py-3 whitespace-nowrap">
                                                     <div className="flex items-center gap-2">
                                                         {sourceTypeIcon(entry.source_type)}
-                                                        <span className="text-xs text-gray-500">{sourceTypeLabel(entry.source_type)}</span>
+                                                        <span className="text-xs text-gray-500">
+                                                            {entry.source_type === 'manual' && entry.category_name
+                                                                ? entry.category_name
+                                                                : sourceTypeLabel(entry.source_type)}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3 font-medium text-gray-900">

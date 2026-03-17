@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
 import axiosInstance from '@/lib/axios';
 import { useLocale } from '@/contexts/LocaleContext';
+import { GradeCategory } from './GradeCategoriesManager';
 
 interface Student {
     id: number;
@@ -30,20 +31,31 @@ export default function AddManualGradeModal({
     onSuccess,
 }: AddManualGradeModalProps) {
     const { t } = useLocale();
-    const GRADE_TYPES = useMemo(
-        () => [
-            { value: 'lesson', label: t('manualGrade.typeLesson') },
-            { value: 'offline_test', label: t('manualGrade.typeOfflineTest') },
-            { value: 'oral', label: t('manualGrade.typeOral') },
-            { value: 'other', label: t('manualGrade.typeOther') },
-        ],
-        [t]
-    );
+    const [categories, setCategories] = useState<GradeCategory[]>([]);
+    const [fetchingCategories, setFetchingCategories] = useState(false);
+
+    useEffect(() => {
+        if (subjectGroupId) {
+            setFetchingCategories(true);
+            axiosInstance.get('/grade-categories/', { params: { subject_group: subjectGroupId } })
+                .then(res => {
+                    const list = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+                    setCategories(list);
+                    if (list.length > 0) {
+                        setCategoryId(list[0].id);
+                    }
+                })
+                .catch(err => console.error(err))
+                .finally(() => setFetchingCategories(false));
+        }
+    }, [subjectGroupId]);
+
     const [studentId, setStudentId] = useState<number | ''>(defaultStudentId ?? '');
     const [value, setValue] = useState<string>('5');
     const [maxValue, setMaxValue] = useState<string>('5');
     const [title, setTitle] = useState('');
-    const [gradeType, setGradeType] = useState<string>('other');
+    const [categoryId, setCategoryId] = useState<number | ''>('');
+    const [weightInCategory, setWeightInCategory] = useState<string>('100');
     const [feedback, setFeedback] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -53,8 +65,9 @@ export default function AddManualGradeModal({
         setError(null);
         const numValue = parseInt(value, 10);
         const numMax = parseInt(maxValue, 10);
-        if (!studentId || !numValue || numValue < 0 || !numMax || numMax < 1) {
-            setError(t('manualGrade.selectStudentAndScore'));
+        const numWeight = parseInt(weightInCategory, 10);
+        if (!studentId || isNaN(numValue) || numValue < 0 || isNaN(numMax) || numMax < 1 || !categoryId || isNaN(numWeight)) {
+            setError(t('manualGrade.selectStudentAndScore') || 'Заполните все поля: Ученик, Оценка, Категория, Вес');
             return;
         }
         if (numValue > numMax) {
@@ -69,7 +82,8 @@ export default function AddManualGradeModal({
                 value: numValue,
                 max_value: numMax,
                 title: title.trim() || undefined,
-                grade_type: gradeType,
+                category: categoryId,
+                weight_in_category: numWeight,
                 feedback: feedback.trim() || undefined,
             });
             onSuccess();
@@ -129,18 +143,33 @@ export default function AddManualGradeModal({
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('manualGrade.gradeTypeLabel')}</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Категория оценки</label>
                     <select
-                        value={gradeType}
-                        onChange={(e) => setGradeType(e.target.value)}
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : '')}
+                        disabled={fetchingCategories}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                        {GRADE_TYPES.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
+                        {categories.map((cat) => (
+                            <option key={cat.id} value={cat.id}>
+                                {cat.name} ({cat.weight}%) {cat.is_formative ? ' [Авто ФО]' : ''}
                             </option>
                         ))}
                     </select>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Вес оценки внутри категории (%)</label>
+                    <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={weightInCategory}
+                        onChange={(e) => setWeightInCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Например, 100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Обычно весит 100%. Если в категории несколько оценок, их средний балл считается с учётом этого веса.</p>
                 </div>
 
                 <div>

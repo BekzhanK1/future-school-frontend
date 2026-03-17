@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
     Users,
     BarChart3,
@@ -17,6 +17,15 @@ import axiosInstance from '@/lib/axios';
 import { useSubject } from '../../layout';
 import AttendanceModal from '@/components/modals/AttendanceModal';
 import { useLocale } from '@/contexts/LocaleContext';
+
+interface ManualGrade {
+    id: number;
+    student: number;
+    subject_group: number;
+    value: number;
+    max_value: number;
+    graded_at: string;
+}
 
 interface AttendanceRecord {
     id: number;
@@ -63,6 +72,7 @@ export default function AttendancePage() {
     const { t, locale } = useLocale();
     const [loading, setLoading] = useState(true);
     const [sessions, setSessions] = useState<AttendanceSession[]>([]);
+    const [manualGrades, setManualGrades] = useState<ManualGrade[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [sortBy, setSortBy] = useState<'name' | 'percentage'>('percentage');
     const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
@@ -70,6 +80,7 @@ export default function AttendancePage() {
     const [todayAttendance, setTodayAttendance] = useState<AttendanceSession | null>(null);
     const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
     const [isSessionDetailOpen, setIsSessionDetailOpen] = useState(false);
+    const [editDate, setEditDate] = useState<Date | undefined>(undefined);
 
     useEffect(() => {
         if (subject?.id) {
@@ -81,9 +92,16 @@ export default function AttendancePage() {
         if (!subject?.id) return;
         try {
             setLoading(true);
-            const response = await axiosInstance.get(`/attendance/?subject_group=${subject.id}`);
-            const allSessions = response.data.results || response.data || [];
+            const [attRes, gradesRes] = await Promise.all([
+                axiosInstance.get(`/attendance/?subject_group=${subject.id}&limit=1000`),
+                axiosInstance.get(`/manual-grades/?subject_group=${subject.id}&grade_type=lesson&limit=1000`)
+            ]);
+            
+            const allSessions = attRes.data.results || attRes.data || [];
             setSessions(allSessions);
+            
+            const allGrades = gradesRes.data.results || gradesRes.data || [];
+            setManualGrades(allGrades);
             
             // Check if attendance was taken today
             const today = new Date().toISOString().split('T')[0];
@@ -179,6 +197,29 @@ export default function AttendancePage() {
     const overallPercentage = totalRecords > 0 ? Math.round((totalPresent + totalExcused) / totalRecords * 100) : 0;
     const uniqueDates = dates.length;
 
+    const gradesByDateAndStudent = useMemo(() => {
+        const map: Record<string, Record<number, ManualGrade>> = {};
+        manualGrades.forEach(grade => {
+            const dateStr = new Date(grade.graded_at).toISOString().split('T')[0];
+            if (!map[dateStr]) map[dateStr] = {};
+            map[dateStr][grade.student] = grade;
+        });
+        return map;
+    }, [manualGrades]);
+
+    const attendanceByDateAndStudent = useMemo(() => {
+        const map: Record<string, Record<number, AttendanceRecord>> = {};
+        sessions.forEach(session => {
+            const dateStr = new Date(session.taken_at).toISOString().split('T')[0];
+            if (!map[dateStr]) map[dateStr] = {};
+            session.records.forEach(record => {
+                map[dateStr][record.student] = record;
+            });
+        });
+        return map;
+    }, [sessions]);
+
+
     if (loading) {
         return (
             <div className="flex justify-center items-center py-12">
@@ -199,6 +240,7 @@ export default function AttendancePage() {
                 </div>
                 <button
                     onClick={() => {
+                        setEditDate(new Date());
                         if (todayAttendance) {
                             setIsConfirmModalOpen(true);
                         } else {
@@ -250,214 +292,122 @@ export default function AttendancePage() {
                 </div>
             </div>
 
-            {/* Student Statistics Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-                <div className="p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <BarChart3 className="w-5 h-5" />
-                        {t('attendancePage.studentStatsTitle')}
-                    </h2>
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder={t('attendancePage.searchPlaceholder')}
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                            />
-                        </div>
-                        <select
-                            value={sortBy}
-                            onChange={e => setSortBy(e.target.value as any)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="percentage">
-                                {t('attendancePage.sortByAttendance')}
-                            </option>
-                            <option value="name">
-                                {t('attendancePage.sortByName')}
-                            </option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-900">Студент</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">
-                                    {t('attendancePage.columnCount')}
-                                </th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">✓</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">○</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">✗</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">Процент</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {students.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                                        {t('attendancePage.noStudentData')}
-                                    </td>
-                                </tr>
-                            ) : (
-                                students.map((student, idx) => (
-                                    <tr key={student.student_id} className={`border-b border-gray-200 hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                        <td className="px-4 py-3">
-                                            <div>
-                                                <p className="font-medium text-gray-900">{student.student_first_name} {student.student_last_name}</p>
-                                                <p className="text-xs text-gray-500">@{student.student_username}</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-gray-700">{student.total}</td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                                                <CheckCircle2 className="w-3 h-3" />
-                                                {student.present}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                                                <Clock className="w-3 h-3" />
-                                                {student.excused}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
-                                                <XCircle className="w-3 h-3" />
-                                                {student.not_present}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full ${
-                                                            student.percentage >= 80
-                                                                ? 'bg-green-600'
-                                                                : student.percentage >= 60
-                                                                  ? 'bg-yellow-600'
-                                                                  : 'bg-red-600'
-                                                        }`}
-                                                        style={{ width: `${student.percentage}%` }}
-                                                    ></div>
-                                                </div>
-                                                <span className="font-bold text-gray-900 w-8 text-right">{student.percentage}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Recent Attendance Dates */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="p-4 border-b border-gray-200">
+            {/* Dates Summary Table */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8 overflow-hidden">
+                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5" />
-                        {t('attendancePage.historyTitle')}
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        {t('attendancePage.byDatesTitle')}
                     </h2>
+                    <p className="text-xs text-gray-500">
+                        {t('attendancePage.byDatesSubtitle')}
+                    </p>
                 </div>
-
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm border-collapse">
                         <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
-                                <th className="px-4 py-3 text-left font-semibold text-gray-900">
-                                    {t('attendancePage.columnDateTime')}
+                                <th className="px-4 py-3 text-left font-semibold text-gray-900 min-w-[140px]">
+                                    {t('attendancePage.columnDate')}
                                 </th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">✓</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">○</th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">✗</th>
                                 <th className="px-4 py-3 text-center font-semibold text-gray-900">
-                                    {t('attendancePage.columnTotal')}
+                                    {t('attendancePage.present')}
                                 </th>
-                                <th className="px-4 py-3 text-center font-semibold text-gray-900">Процент</th>
+                                <th className="px-4 py-3 text-center font-semibold text-gray-900">
+                                    {t('attendancePage.excused')}
+                                </th>
+                                <th className="px-4 py-3 text-center font-semibold text-gray-900">
+                                    {t('attendancePage.absent')}
+                                </th>
+                                <th className="px-4 py-3 text-center font-semibold text-gray-900">
+                                    {t('attendancePage.columnTotalStudents')}
+                                </th>
+                                <th className="px-4 py-3 text-center font-semibold text-gray-900">
+                                    {t('attendancePage.classAttendanceShort')}
+                                </th>
+                                <th className="px-4 py-3 text-right font-semibold text-gray-900 min-w-[120px]">
+                                    {t('attendancePage.columnActions')}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             {dates.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                                        {t('attendancePage.noDates')}
+                                    <td
+                                        colSpan={7}
+                                        className="px-4 py-6 text-center text-gray-500"
+                                    >
+                                        {t('attendancePage.noDatesData')}
                                     </td>
                                 </tr>
                             ) : (
-                                dates.map((date, idx) => (
-                                    <tr key={date.date} className={`border-b border-gray-200 hover:bg-gray-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                                        <td className="px-4 py-3 font-medium text-gray-900">
-                                            <div className="flex flex-col gap-1">
-                                                <span>{new Date(date.date).toLocaleDateString('ru-RU', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {sessions
-                                                        .filter(session => {
-                                                            const sessionDate = new Date(session.taken_at).toISOString().split('T')[0];
-                                                            return sessionDate === date.date;
-                                                        })
-                                                        .map(session => {
-                                                            const time = new Date(session.taken_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-                                                            return (
-                                                                <button
-                                                                    key={session.id}
-                                                                    onClick={() => {
-                                                                        setSelectedSession(session);
-                                                                        setIsSessionDetailOpen(true);
-                                                                    }}
-                                                                    className="text-xs text-blue-600 hover:text-blue-800 hover:underline bg-blue-50 px-2 py-1 rounded"
-                                                                >
-                                                                    {time}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                                                <CheckCircle2 className="w-3 h-3" />
+                                dates.map(date => {
+                                    const session = sessions.find(
+                                        s =>
+                                            new Date(s.taken_at)
+                                                .toISOString()
+                                                .split('T')[0] === date.date
+                                    );
+                                    return (
+                                        <tr
+                                            key={date.date}
+                                            className="border-b border-gray-100 hover:bg-gray-50"
+                                        >
+                                            <td className="px-4 py-3 text-gray-900">
+                                                {new Date(date.date).toLocaleDateString(
+                                                    locale === 'en' ? 'en-GB' : 'ru-RU',
+                                                    {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        year: 'numeric',
+                                                    }
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-green-700 font-medium">
                                                 {date.total_present}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                                                <Clock className="w-3 h-3" />
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-yellow-700 font-medium">
                                                 {date.total_excused}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">
-                                                <XCircle className="w-3 h-3" />
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-red-700 font-medium">
                                                 {date.total_not_present}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center text-gray-700 font-medium">{date.total_students}</td>
-                                        <td className="px-4 py-3 text-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <div className="w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div
-                                                        className={`h-full ${
-                                                            date.percentage >= 80
-                                                                ? 'bg-green-600'
-                                                                : date.percentage >= 60
-                                                                  ? 'bg-yellow-600'
-                                                                  : 'bg-red-600'
-                                                        }`}
-                                                        style={{ width: `${date.percentage}%` }}
-                                                    ></div>
-                                                </div>
-                                                <span className="font-bold text-gray-900 w-8 text-right">{date.percentage}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-gray-900">
+                                                {date.total_students}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <span
+                                                    className={`font-semibold ${
+                                                        date.percentage >= 80
+                                                            ? 'text-green-600'
+                                                            : date.percentage >= 60
+                                                            ? 'text-yellow-600'
+                                                            : 'text-red-600'
+                                                    }`}
+                                                >
+                                                    {date.percentage}%
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-right">
+                                                {session ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            setSelectedSession(session);
+                                                            setIsSessionDetailOpen(true);
+                                                        }}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                                    >
+                                                        {t('attendancePage.viewDetails')}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">
+                                                        {t('attendancePage.noSession')}
+                                                    </span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
@@ -470,6 +420,7 @@ export default function AttendancePage() {
                 onClose={() => setIsAttendanceModalOpen(false)}
                 subjectGroupId={Number(subject?.id) || 0}
                 onSuccess={fetchAttendance}
+                initialDate={editDate}
             />
 
             {/* Confirm Attendance Modal */}
@@ -535,12 +486,24 @@ export default function AttendancePage() {
                                     ),
                                 })}
                             </h2>
-                            <button
-                                onClick={() => setIsSessionDetailOpen(false)}
-                                className="text-gray-500 hover:text-gray-700 text-2xl"
-                            >
-                                ✕
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => {
+                                        setEditDate(new Date(selectedSession.taken_at));
+                                        setIsSessionDetailOpen(false);
+                                        setIsAttendanceModalOpen(true);
+                                    }}
+                                    className="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-medium transition-colors"
+                                >
+                                    Редактировать
+                                </button>
+                                <button
+                                    onClick={() => setIsSessionDetailOpen(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
 
                         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
@@ -570,13 +533,19 @@ export default function AttendancePage() {
                                         <th className="px-4 py-3 text-center font-semibold text-gray-900">
                                             {t('attendancePage.columnStatus')}
                                         </th>
+                                        <th className="px-4 py-3 text-center font-semibold text-gray-900">
+                                            ФО (из 10)
+                                        </th>
                                         <th className="px-4 py-3 text-left font-semibold text-gray-900">
                                             {t('attendancePage.columnNote')}
                                         </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {selectedSession.records.map(record => (
+                                    {selectedSession.records.map(record => {
+                                        const dateStr = new Date(selectedSession.taken_at).toISOString().split('T')[0];
+                                        const grade = gradesByDateAndStudent[dateStr]?.[record.student];
+                                        return (
                                         <tr key={record.id} className="border-b border-gray-200 hover:bg-gray-50">
                                             <td className="px-4 py-3">
                                                 <div>
@@ -601,11 +570,18 @@ export default function AttendancePage() {
                                                     </span>
                                                 )}
                                             </td>
+                                            <td className="px-4 py-3 text-center">
+                                                {grade ? (
+                                                    <span className="font-medium text-gray-900">{grade.value}</span>
+                                                ) : (
+                                                    <span className="text-gray-400">-</span>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3 text-sm text-gray-600">
                                                 {record.notes || t('attendancePage.noNote')}
                                             </td>
                                         </tr>
-                                    ))}
+                                    )})}
                                 </tbody>
                             </table>
                         </div>

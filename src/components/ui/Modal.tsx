@@ -40,7 +40,7 @@ export default function Modal({
 
     return (
         <div
-            className="fixed inset-0 bg-[rgba(0,0,0,0.5)] flex items-center justify-center z-50 p-3 sm:p-4 md:p-6"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 md:p-6"
             onClick={handleBackdropClick}
         >
             <div
