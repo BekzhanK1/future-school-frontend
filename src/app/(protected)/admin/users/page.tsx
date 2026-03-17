@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Users, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit, Trash2, Users, FileSpreadsheet, Download } from 'lucide-react';
 import { useUserState } from '@/contexts/UserContext';
 import axiosInstance from '@/lib/axios';
 import UserModal from '@/components/users/UserModal';
@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import ParentChildrenModal from '@/components/users/ParentChildrenModal';
 import ImportStudentsExcelModal from '@/components/users/ImportStudentsExcelModal';
 import ImportTeachersExcelModal from '@/components/users/ImportTeachersExcelModal';
+import CredentialsFilesModal from '@/components/users/CredentialsFilesModal';
 
 interface UserData {
     id: number;
@@ -34,6 +35,7 @@ export default function UsersPage() {
     const [parentForChildrenModal, setParentForChildrenModal] = useState<UserData | null>(null);
     const [showImportStudentsModal, setShowImportStudentsModal] = useState(false);
     const [showImportTeachersModal, setShowImportTeachersModal] = useState(false);
+    const [showCredentialsModal, setShowCredentialsModal] = useState(false);
     const { user } = useUserState();
     const router = useRouter();
 
@@ -234,6 +236,13 @@ export default function UsersPage() {
                             >
                                 <FileSpreadsheet className="w-4 h-4" />
                                 Импорт учителей
+                            </button>
+                            <button
+                                onClick={() => setShowCredentialsModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                            >
+                                <Download className="w-4 h-4" />
+                                Credentials
                             </button>
                             <button
                                 onClick={() => setShowCreateModal(true)}
@@ -442,6 +451,11 @@ export default function UsersPage() {
                         : undefined
                 }
                 onClose={() => setParentForChildrenModal(null)}
+            />
+
+            <CredentialsFilesModal
+                isOpen={showCredentialsModal}
+                onClose={() => setShowCredentialsModal(false)}
             />
         </div>
     );

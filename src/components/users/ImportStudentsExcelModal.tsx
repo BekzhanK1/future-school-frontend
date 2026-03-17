@@ -29,6 +29,10 @@ interface ImportResult {
     created_parent_username?: string;
     created_parent_password?: string;
     created_parents?: Array<{ username: string; password: string }>;
+    credentials_file?: {
+        path: string;
+        url: string;
+    };
 }
 
 interface PreviewData {
@@ -46,6 +50,7 @@ interface PreviewData {
         class_name: string;
         first_name: string;
         last_name: string;
+        email?: string | null;
         student_status: 'new' | 'existing';
         parent_username: string | null;
         parent_status: string | null;
@@ -179,6 +184,7 @@ export default function ImportStudentsExcelModal({
                     headers: {
                         'Content-Type': 'multipart/form-data',
                     },
+                    timeout: 60000,
                 }
             );
 
@@ -188,10 +194,29 @@ export default function ImportStudentsExcelModal({
             }
         } catch (err: any) {
             console.error('Error importing students:', err);
-            const errorMessage =
-                err?.response?.data?.error ||
-                err?.response?.data?.detail ||
-                'Не удалось импортировать студентов. Проверьте формат файла.';
+
+            let errorMessage = 'Не удалось импортировать студентов. Проверьте формат файла.';
+
+            const data = err?.response?.data;
+            if (data) {
+                if (typeof data === 'string') {
+                    errorMessage = data;
+                } else if (typeof data.error === 'string') {
+                    errorMessage = data.error;
+                } else if (typeof data.detail === 'string') {
+                    errorMessage = data.detail;
+                } else if (Array.isArray(data) && data.length > 0) {
+                    errorMessage = String(data[0]);
+                } else if (typeof data === 'object') {
+                    const firstKey = Object.keys(data)[0];
+                    if (firstKey && data[firstKey]) {
+                        errorMessage = Array.isArray(data[firstKey])
+                            ? String(data[firstKey][0])
+                            : String(data[firstKey]);
+                    }
+                }
+            }
+
             setError(errorMessage);
         } finally {
             setLoading(false);
@@ -319,11 +344,80 @@ export default function ImportStudentsExcelModal({
                                         <p className="text-amber-600">Ошибок в файле: {previewData.summary.errors_count}</p>
                                     )}
                                     {previewData.rows.length > 0 && (
-                                        <p className="text-gray-500">
-                                            Строк к импорту: {previewData.summary.rows_count}
-                                            {previewData.rows.length < previewData.summary.rows_count &&
-                                                ` (показаны первые ${previewData.rows.length})`}
-                                        </p>
+                                        <>
+                                            <p className="text-gray-500 mb-2">
+                                                Строк к импорту: {previewData.summary.rows_count}
+                                                {previewData.rows.length < previewData.summary.rows_count &&
+                                                    ` (показаны первые ${previewData.rows.length})`}
+                                            </p>
+                                            <div className="border border-gray-200 rounded-md overflow-hidden max-h-64 overflow-y-auto">
+                                                <table className="min-w-full text-xs">
+                                                    <thead className="bg-gray-100 text-gray-600 sticky top-0">
+                                                        <tr>
+                                                            <th className="px-2 py-1 text-left">#</th>
+                                                            <th className="px-2 py-1 text-left">Класс</th>
+                                                            <th className="px-2 py-1 text-left">ФИО</th>
+                                                            <th className="px-2 py-1 text-left">Email</th>
+                                                            <th className="px-2 py-1 text-left">Статус ученика</th>
+                                                            <th className="px-2 py-1 text-left">Родитель</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {previewData.rows.map((row, idx) => (
+                                                            <tr
+                                                                key={`${row.row}-${idx}`}
+                                                                className={row.student_status === 'new'
+                                                                    ? 'bg-green-50'
+                                                                    : 'bg-blue-50'}
+                                                            >
+                                                                <td className="px-2 py-1 text-gray-500">{row.row}</td>
+                                                                <td className="px-2 py-1 font-mono">{row.class_name}</td>
+                                                                <td className="px-2 py-1">
+                                                                    {row.last_name} {row.first_name}
+                                                                </td>
+                                                                <td className="px-2 py-1 text-gray-700">
+                                                                    {row.email || '—'}
+                                                                </td>
+                                                                <td className="px-2 py-1">
+                                                                    {row.student_status === 'new' ? (
+                                                                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-green-100 text-green-800">
+                                                                            Новый
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-800">
+                                                                            Уже в БД
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-2 py-1 text-gray-700">
+                                                                    {row.parent_username
+                                                                        ? `${row.parent_username}${row.parent_status ? ` (${row.parent_status})` : ''}`
+                                                                        : '—'}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            {previewData.errors.length > 0 && (
+                                                <div className="mt-3">
+                                                    <p className="text-xs font-medium text-amber-700 mb-1">
+                                                        Ошибки при разборе файла (показаны первые {previewData.errors.length}):
+                                                    </p>
+                                                    <div className="max-h-32 overflow-y-auto space-y-1">
+                                                        {previewData.errors.map((err, idx) => (
+                                                            <div
+                                                                key={`${err.row}-${idx}`}
+                                                                className="text-xs bg-amber-50 border border-amber-200 rounded px-2 py-1"
+                                                            >
+                                                                <span className="font-semibold">Строка {err.row}:</span>{' '}
+                                                                {err.error}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             ) : null}
@@ -439,6 +533,23 @@ export default function ImportStudentsExcelModal({
                                                 </div>
                                             ))}
                                         </div>
+                                    </div>
+                                )}
+
+                                {result.credentials_file && (
+                                    <div className="mt-4">
+                                        <a
+                                            href={result.credentials_file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                        >
+                                            <Upload className="w-4 h-4 mr-2" />
+                                            Скачать Excel с логинами и паролями
+                                        </a>
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Файл будет сохранён на ваш компьютер. Храните его в защищённом месте.
+                                        </p>
                                     </div>
                                 )}
 
