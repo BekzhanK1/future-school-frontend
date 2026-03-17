@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, Clock } from 'lucide-react';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useApi';
 import Link from 'next/link';
@@ -9,11 +9,8 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/contexts/LocaleContext';
 
 const loginSchema = z.object({
-    username: z.string().min(1, 'Username is required'),
-    password: z
-        .string()
-        .min(1, 'Password is required')
-        .min(6, 'Password must be at least 6 characters'),
+    username: z.string().min(1, 'Введите имя пользователя'),
+    password: z.string().min(1, 'Введите пароль').min(6, 'Минимум 6 символов'),
 });
 
 export default function LoginPage() {
@@ -21,23 +18,19 @@ export default function LoginPage() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [errors, setErrors] = useState<{
-        username?: string;
-        password?: string;
-    }>({});
+    const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
     const [sessionExpiredMsg, setSessionExpiredMsg] = useState(false);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('session_expired') === 'true') {
-                setSessionExpiredMsg(true);
-            }
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('session_expired') === 'true') setSessionExpiredMsg(true);
         }
     }, []);
 
     const { login, loading: isLoading, error: authError } = useAuth();
     const router = useRouter();
+
     const validateForm = (): boolean => {
         try {
             loginSchema.parse({ username, password });
@@ -47,11 +40,8 @@ export default function LoginPage() {
             if (error instanceof z.ZodError) {
                 const newErrors: { username?: string; password?: string } = {};
                 error.issues.forEach((err: z.ZodIssue) => {
-                    if (err.path[0] === 'username') {
-                        newErrors.username = err.message;
-                    } else if (err.path[0] === 'password') {
-                        newErrors.password = err.message;
-                    }
+                    if (err.path[0] === 'username') newErrors.username = err.message;
+                    else if (err.path[0] === 'password') newErrors.password = err.message;
                 });
                 setErrors(newErrors);
             }
@@ -61,149 +51,125 @@ export default function LoginPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        if (!validateForm()) {
-            return;
-        }
-
+        if (!validateForm()) return;
         const result = await login({ username, password });
-        console.log(result);
-
-        if (result) {
-            if (typeof window !== 'undefined') {
-                router.push('/dashboard');
-            }
-        }
+        if (result) router.push('/dashboard');
     };
 
     return (
-        <div className="space-y-6 w-full">
+        <div className="space-y-7">
             {/* Header */}
-            <div className="text-center">
-                <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-                    Добро пожаловать!
+            <div>
+                <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+                    Добро пожаловать
                 </h2>
-
-                {sessionExpiredMsg && (
-                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">
-                            Ваша сессия истекла. Пожалуйста, войдите снова.
-                        </p>
-                    </div>
-                )}
-
-                {authError && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-600">
-                            {t(`auth.${authError}`)}
-                        </p>
-                    </div>
-                )}
+                <p className="mt-1 text-sm text-gray-500">
+                    Войдите в свой аккаунт Future School
+                </p>
             </div>
 
-            {/* Form */}
-            <form
-                className="space-y-6 sm:space-y-8 md:space-y-10"
-                onSubmit={handleSubmit}
-            >
-                <div className="space-y-4 sm:space-y-6">
-                    <div className="space-y-2">
-                        <label
-                            htmlFor="username"
-                            className="block text-sm text-gray-700 font-bold mb-1"
-                        >
-                            Имя пользователя / Email
-                        </label>
-                        <div className="relative">
-                            <input
-                                id="username"
-                                name="username"
-                                type="text"
-                                required
-                                value={username}
-                                onChange={e => setUsername(e.target.value)}
-                                className={`block w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base rounded-lg shadow-sm placeholder-gray-400 border ${
-                                    errors.username
-                                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                                } bg-white text-gray-900 focus:outline-none focus:ring-2`}
-                                placeholder="student1 или email@ex.com"
-                            />
-                        </div>
-                        {errors.username && (
-                            <p className="mt-1 text-xs sm:text-sm text-red-600">
-                                {errors.username}
-                            </p>
-                        )}
-                    </div>
+            {/* Alerts */}
+            {sessionExpiredMsg && (
+                <div className="flex items-start gap-3 p-3.5 bg-amber-50 border border-amber-200 rounded-xl">
+                    <Clock className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-800">
+                        Сессия истекла. Пожалуйста, войдите снова.
+                    </p>
+                </div>
+            )}
+            {authError && (
+                <div className="flex items-start gap-3 p-3.5 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-700">{t(`auth.${authError}`)}</p>
+                </div>
+            )}
 
-                    <div>
-                        <label
-                            htmlFor="password"
-                            className="block text-sm text-gray-700 font-bold mb-1"
-                        >
-                            Пароль
-                        </label>
-                        <div className="relative">
-                            <input
-                                id="password"
-                                name="password"
-                                type={showPassword ? 'text' : 'password'}
-                                autoComplete="current-password"
-                                required
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                className={`block w-full px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border rounded-lg shadow-sm placeholder-gray-400 ${
-                                    errors.password
-                                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                                } bg-white text-gray-900 focus:outline-none focus:ring-2`}
-                                placeholder={t('auth.password')}
-                            />
-                            <button
-                                type="button"
-                                className="absolute inset-y-0 right-0 pr-2 sm:pr-3 flex items-center"
-                                onClick={() => setShowPassword(!showPassword)}
-                            >
-                                {showPassword ? (
-                                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hover:text-gray-600" />
-                                ) : (
-                                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 hover:text-gray-600" />
-                                )}
-                            </button>
-                        </div>
-                        {errors.password && (
-                            <p className="mt-1 text-xs sm:text-sm text-red-600">
-                                {errors.password}
-                            </p>
-                        )}
-                        <div className="text-xs text-gray-400 mt-1.5 sm:mt-2">
-                            <Link
-                                href="/reset-password"
-                                className="font-medium float-end hover:text-gray-600"
-                            >
-                                <u className="font-semibold">
-                                    {t('auth.forgotPassword')}
-                                </u>
-                            </Link>
-                        </div>
-                    </div>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Username */}
+                <div className="space-y-1.5">
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                        Имя пользователя
+                    </label>
+                    <input
+                        id="username"
+                        type="text"
+                        autoComplete="username"
+                        required
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        placeholder="student1"
+                        className={`block w-full px-4 py-3 text-sm bg-gray-50 border rounded-xl placeholder-gray-400 text-gray-900 transition-colors focus:outline-none focus:bg-white focus:ring-2 ${
+                            errors.username
+                                ? 'border-red-300 focus:ring-red-200'
+                                : 'border-gray-200 focus:border-violet-400 focus:ring-violet-100'
+                        }`}
+                    />
+                    {errors.username && (
+                        <p className="text-xs text-red-600 mt-1">{errors.username}</p>
+                    )}
                 </div>
 
+                {/* Password */}
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                            Пароль
+                        </label>
+                        <Link
+                            href="/reset-password"
+                            className="text-xs font-medium text-violet-600 hover:text-violet-700"
+                        >
+                            Забыли пароль?
+                        </Link>
+                    </div>
+                    <div className="relative">
+                        <input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            required
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className={`block w-full px-4 py-3 pr-11 text-sm bg-gray-50 border rounded-xl placeholder-gray-400 text-gray-900 transition-colors focus:outline-none focus:bg-white focus:ring-2 ${
+                                errors.password
+                                    ? 'border-red-300 focus:ring-red-200'
+                                    : 'border-gray-200 focus:border-violet-400 focus:ring-violet-100'
+                            }`}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600"
+                        >
+                            {showPassword
+                                ? <EyeOff className="w-4 h-4" />
+                                : <Eye className="w-4 h-4" />
+                            }
+                        </button>
+                    </div>
+                    {errors.password && (
+                        <p className="text-xs text-red-600 mt-1">{errors.password}</p>
+                    )}
+                </div>
+
+                {/* Submit */}
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="group relative w-full flex justify-center py-2.5 sm:py-3 px-4 border border-transparent text-sm sm:text-base font-medium rounded-lg main-button text-white bg-gradient-to-r to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     {isLoading ? (
-                        <div className="flex items-center">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                            {t('auth.signingIn')}
-                        </div>
+                        <>
+                            <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                            <span>Входим...</span>
+                        </>
                     ) : (
-                        <div className="flex items-center">
-                            {t('auth.login')}
-                        </div>
+                        <>
+                            <LogIn className="w-4 h-4" />
+                            <span>Войти</span>
+                        </>
                     )}
                 </button>
             </form>

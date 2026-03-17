@@ -11,7 +11,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg } from '@fullcalendar/core';
-import { Settings, ChevronDown, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { modalController } from '@/lib/modalController';
 import CreateEventModal from './CreateEventModal';
 import type { EventModalData } from '@/lib/modalController';
@@ -124,6 +124,7 @@ export interface DayScheduleEventFromCalendar {
 interface CalendarProps {
     selectedDate?: Date;
     onDateChange?: (date: Date, events: DayScheduleEventFromCalendar[]) => void;
+    rightSlot?: React.ReactNode;
 }
 
 // Палитра цветов для предметов (уроков)
@@ -170,7 +171,7 @@ function getSubjectColors(subjectName: string | undefined | null) {
     return colors;
 }
 
-const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) => {
+const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: CalendarProps) => {
     const { user } = useUserState();
     const [tests, setTests] = useState<Test[]>([]);
     const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -181,12 +182,10 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
     const [error, setError] = useState<string | null>(null);
     const [isMobile, setIsMobile] = useState(false);
     const [view, setView] = useState<CalendarView>('timeGridWeek');
-    const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
     const [currentDateRange, setCurrentDateRange] = useState<{
         start: Date | null;
         end: Date | null;
     }>({ start: null, end: null });
-    const menuRef = useRef<HTMLDivElement>(null);
     const calendarRef = useRef<any>(null);
     const [createEventModalOpen, setCreateEventModalOpen] = useState(false);
     const { t, locale } = useLocale();
@@ -213,29 +212,8 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
         }
     }, []);
 
-    // Close menu when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                menuRef.current &&
-                !menuRef.current.contains(event.target as Node)
-            ) {
-                setIsViewMenuOpen(false);
-            }
-        };
-
-        if (isViewMenuOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isViewMenuOpen]);
-
     const handleViewChange = (newView: CalendarView) => {
         setView(newView);
-        setIsViewMenuOpen(false);
     };
 
     const handleTodayClick = () => {
@@ -248,6 +226,9 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
             onDateChange(today, dayEvents);
         }
     };
+
+    const handlePrev = () => calendarRef.current?.getApi?.()?.prev();
+    const handleNext = () => calendarRef.current?.getApi?.()?.next();
 
     // Format date range for display
     const formatDateRange = useCallback(() => {
@@ -1113,11 +1094,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
         () => ({
             plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
             initialView: view,
-            headerToolbar: {
-                left: '',
-                center: '',
-                right: 'prev,next',
-            },
+            headerToolbar: false,
             height: 'auto',
             aspectRatio:
                 view === 'timeGridDay'
@@ -1145,165 +1122,126 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
                 const room = props?.room || '';
                 const teacher = props?.teacher || props?.teacherFullName || '';
 
-                // Компактный вид для студента: название + кабинет, полная инфа в title (ховер)
-                const escapeTitle = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                const fullTitleParts = [subject, classroom, room, teacher].filter(Boolean);
-                const fullTitle = fullTitleParts.join(' • ');
+                const esc = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-                // Custom content for grouped schedule events
+                // Reusable block builder
+                const block = (rows: string[]) =>
+                    `<div style="padding:3px 5px;height:100%;display:flex;flex-direction:column;gap:1px;overflow:hidden;">${rows.join('')}</div>`;
+                const row = (cls: string, content: string) =>
+                    `<div class="${cls}">${content}</div>`;
+
+                // ── Grouped schedule slots (admin) ──────────────────────────
                 if (type === 'schedule' && isGrouped) {
-                    const groupedEvents = props?.groupedEvents || [];
-                    const groupedTooltip = groupedEvents
-                        .map((e: any) => {
-                            const p = e.extendedProps || {};
-                            return [p.subject, p.room, p.teacher].filter(Boolean).join(' — ');
-                        })
-                        .join('\n');
+                    const groupedEvents: any[] = props?.groupedEvents || [];
                     if (isAdmin) {
-                        return {
-                            html: `
-                                <div style="padding: 2px 4px; font-size: 0.75rem;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">${groupedCount} ${t('schedule.lessonsCount')}</div>
-                                    <div style="font-size: 0.7rem; opacity: 0.8;">${t('schedule.clickToView')}</div>
-                                </div>
-                            `
-                        };
+                        const items = groupedEvents.slice(0, 4).map((e: any) => {
+                            const p = e.extendedProps || {};
+                            const dot = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${esc(e.borderColor || e.backgroundColor || '#6366f1')};flex-shrink:0"></span>`;
+                            const label = [p.subject, p.classroom].filter(Boolean).join(' · ');
+                            return `<div class="fc-ev-grouped-item">${dot}<span style="overflow:hidden;text-overflow:ellipsis;">${esc(label)}</span></div>`;
+                        }).join('');
+                        const more = groupedCount > 4 ? `<div class="fc-ev-meta" style="margin-top:1px;">+${groupedCount - 4} ещё...</div>` : '';
+                        return { html: block([
+                            row('fc-ev-time', `${groupedCount} ${t('schedule.lessonsCount')}`),
+                            items,
+                            more,
+                        ]) };
                     }
-                    return {
-                        html: `
-                            <div class="fc-event-compact" title="${escapeTitle(groupedTooltip)}" style="padding: 2px 4px; font-size: 0.75rem;">
-                                <div style="font-weight: 600;">${groupedCount} ${t('schedule.lessonsCount')}</div>
-                            </div>
-                        `
-                    };
+                    // Non-admin grouped
+                    return { html: block([
+                        row('fc-ev-title', `${groupedCount} ${t('schedule.lessonsCount')}`),
+                        row('fc-ev-meta', t('schedule.clickToView')),
+                    ]) };
                 }
 
-                // Custom content for schedule events
+                // ── Schedule ────────────────────────────────────────────────
                 if (type === 'schedule') {
+                    const timeStr = props?.time ? String(props.time).replace(/(\d{2}:\d{2}):\d{2}/g, '$1') : '';
                     if (isAdmin) {
-                        return {
-                            html: `
-                                <div style="padding: 2px 4px; font-size: 0.75rem;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">${escapeTitle(subject)}</div>
-                                    ${classroom ? `<div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(classroom)}</div>` : ''}
-                                    ${room ? `<div style="font-size: 0.7rem; opacity: 0.8;">${escapeTitle(room)}</div>` : ''}
-                                    ${teacher ? `<div style="font-size: 0.7rem; opacity: 0.8;">${escapeTitle(teacher)}</div>` : ''}
-                                </div>
-                            `
-                        };
+                        return { html: block([
+                            timeStr ? row('fc-ev-time', esc(timeStr)) : '',
+                            row('fc-ev-title', esc(subject)),
+                            classroom ? row('fc-ev-meta', esc(classroom)) : '',
+                            room ? row('fc-ev-meta', `каб. ${esc(room)}`) : '',
+                            teacher ? row('fc-ev-meta', esc(teacher)) : '',
+                        ]) };
                     }
                     const isTeacher = user?.role === 'teacher';
-                    const classInBrackets = isTeacher && classroom ? ` (${classroom})` : '';
-                    const compactText = room ? `${subject}${classInBrackets} | ${room}` : `${subject}${classInBrackets}`;
-                    return {
-                        html: `
-                            <div class="fc-event-compact" title="${escapeTitle(fullTitle)}" style="padding: 2px 4px; font-size: 0.75rem;">
-                                <div style="font-weight: 600;">${escapeTitle(compactText)}</div>
-                            </div>
-                        `
-                    };
+                    return { html: block([
+                        timeStr ? row('fc-ev-time', esc(timeStr)) : '',
+                        row('fc-ev-title', esc(subject)),
+                        isTeacher && classroom ? row('fc-ev-meta', esc(classroom)) : '',
+                        room ? row('fc-ev-meta', `каб. ${esc(room)}`) : '',
+                        !isTeacher && teacher ? row('fc-ev-meta', esc(teacher)) : '',
+                    ]) };
                 }
 
-                // Custom content for tests
+                // ── Test ────────────────────────────────────────────────────
                 if (type === 'test') {
                     const testSubject = props?.subject || '';
-                    const testTeacher = props?.teacher || '';
-                    const testFullTitle = [event.title, testSubject, testTeacher].filter(Boolean).join(' • ');
-                    if (isAdmin) {
-                        return {
-                            html: `
-                                <div style="padding: 2px 4px; font-size: 0.75rem;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">${escapeTitle(event.title || '')}</div>
-                                    ${testSubject ? `<div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(testSubject)}</div>` : ''}
-                                    ${testTeacher ? `<div style="font-size: 0.7rem; opacity: 0.8;">${escapeTitle(testTeacher)}</div>` : ''}
-                                </div>
-                            `
-                        };
-                    }
-                    return {
-                        html: `
-                            <div class="fc-event-compact" title="${escapeTitle(testFullTitle)}" style="padding: 2px 4px; font-size: 0.75rem;">
-                                <div style="font-weight: 600;">${escapeTitle(event.title || '')}</div>
-                                ${testSubject ? `<div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(testSubject)}</div>` : ''}
-                            </div>
-                        `
-                    };
+                    const timeStr = props?.time ? String(props.time).replace(/(\d{2}:\d{2}):\d{2}/g, '$1') : '';
+                    return { html: block([
+                        timeStr ? row('fc-ev-time', esc(timeStr)) : '',
+                        row('fc-ev-title', esc(event.title || '')),
+                        testSubject ? row('fc-ev-meta', esc(testSubject)) : '',
+                        isAdmin && teacher ? row('fc-ev-meta', esc(teacher)) : '',
+                    ]) };
                 }
 
-                // Custom content for calendar events (meeting, gathering, other)
-                if (type === 'meeting' || type === 'gathering' || type === 'school_event' || type === 'other') {
-                    const categoryLabel = props?.categoryLabel || type;
-                    const loc = props?.location || '';
-                    if (isAdmin) {
-                        return {
-                            html: `
-                                <div style="padding: 2px 4px; font-size: 0.75rem;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">${escapeTitle(event.title || '')}</div>
-                                    <div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(categoryLabel)}</div>
-                                    ${loc ? `<div style="font-size: 0.7rem; opacity: 0.8;">${escapeTitle(loc)}</div>` : ''}
-                                </div>
-                            `
-                        };
-                    }
-                    return {
-                        html: `
-                            <div class="fc-event-compact" title="${escapeTitle([event.title, categoryLabel, loc].filter(Boolean).join(' • '))}" style="padding: 2px 4px; font-size: 0.75rem;">
-                                <div style="font-weight: 600;">${escapeTitle(event.title || '')}</div>
-                                ${loc ? `<div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(loc)}</div>` : ''}
-                            </div>
-                        `
-                    };
-                }
-
-                // Custom content for assignments
+                // ── Assignment ──────────────────────────────────────────────
                 if (type === 'assignment') {
                     const assignSubject = props?.subject || '';
-                    const assignTeacher = props?.teacher || '';
-                    const assignFullTitle = [event.title, assignSubject, assignTeacher].filter(Boolean).join(' • ');
-                    if (isAdmin) {
-                        return {
-                            html: `
-                                <div style="padding: 2px 4px; font-size: 0.75rem;">
-                                    <div style="font-weight: 600; margin-bottom: 2px;">${escapeTitle(event.title || '')}</div>
-                                    ${assignSubject ? `<div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(assignSubject)}</div>` : ''}
-                                    ${assignTeacher ? `<div style="font-size: 0.7rem; opacity: 0.8;">${escapeTitle(assignTeacher)}</div>` : ''}
-                                </div>
-                            `
-                        };
-                    }
-                    return {
-                        html: `
-                            <div class="fc-event-compact" title="${escapeTitle(assignFullTitle)}" style="padding: 2px 4px; font-size: 0.75rem;">
-                                <div style="font-weight: 600;">${escapeTitle(event.title || '')}</div>
-                                ${assignSubject ? `<div style="font-size: 0.7rem; opacity: 0.9;">${escapeTitle(assignSubject)}</div>` : ''}
-                            </div>
-                        `
-                    };
+                    const timeStr = props?.time ? String(props.time).replace(/(\d{2}:\d{2}):\d{2}/g, '$1') : '';
+                    return { html: block([
+                        timeStr ? row('fc-ev-time', `Сдать до ${esc(timeStr)}`) : '',
+                        row('fc-ev-title', esc(event.title || '')),
+                        assignSubject ? row('fc-ev-meta', esc(assignSubject)) : '',
+                    ]) };
                 }
 
-                // Default content
-                return { html: `<div style="padding: 2px 4px; font-weight: 500;">${escapeTitle(event.title || '')}</div>` };
+                // ── Meeting / school event / other ─────────────────────────
+                if (['meeting','gathering','school_event','other'].includes(type)) {
+                    const categoryLabel = props?.categoryLabel || type;
+                    const loc = props?.location || '';
+                    const timeStr = props?.time ? String(props.time).replace(/(\d{2}:\d{2}):\d{2}/g, '$1') : '';
+                    return { html: block([
+                        timeStr ? row('fc-ev-time', esc(timeStr)) : '',
+                        row('fc-ev-title', esc(event.title || '')),
+                        row('fc-ev-meta', esc(categoryLabel)),
+                        loc ? row('fc-ev-meta', esc(loc)) : '',
+                    ]) };
+                }
+
+                // Default
+                return { html: block([row('fc-ev-title', esc(event.title || ''))]) };
             },
             dayHeaderFormat: {
                 weekday: 'short' as const,
             },
             dayHeaderContent: (arg: any) => {
-                const day = arg.date.getDay(); // 0=Sun,1=Mon...
+                const date = arg.date;
+                const day = date.getDay();
                 const key =
-                    day === 1
-                        ? 'mon'
-                        : day === 2
-                          ? 'tue'
-                          : day === 3
-                            ? 'wed'
-                            : day === 4
-                              ? 'thu'
-                              : day === 5
-                                ? 'fri'
-                                : day === 6
-                                  ? 'sat'
-                                  : 'sun';
-                return t(`calendar.daysShort.${key}`);
+                    day === 1 ? 'mon'
+                    : day === 2 ? 'tue'
+                    : day === 3 ? 'wed'
+                    : day === 4 ? 'thu'
+                    : day === 5 ? 'fri'
+                    : day === 6 ? 'sat'
+                    : 'sun';
+                const today = new Date();
+                const isToday =
+                    date.getDate() === today.getDate() &&
+                    date.getMonth() === today.getMonth() &&
+                    date.getFullYear() === today.getFullYear();
+                const dayName = t(`calendar.daysShort.${key}`);
+                const dateNum = date.getDate();
+                return {
+                    html: `<div class="fc-day-header-inner">
+                        <span class="fc-day-header-name">${dayName}</span>
+                        <span class="fc-day-header-num${isToday ? ' is-today' : ''}">${dateNum}</span>
+                    </div>`,
+                };
             },
             titleFormat: {
                 month: 'long' as const,
@@ -1317,6 +1255,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
             selectable: true,
             selectMirror: true,
             weekends: true,
+            firstDay: 1,
             locale: locale === 'kk' ? 'kk' : locale === 'ru' ? 'ru' : 'en',
             slotMinTime: '08:00:00',
             slotMaxTime: '22:00:00',
@@ -1594,103 +1533,88 @@ const Calendar = ({ selectedDate = new Date(), onDateChange }: CalendarProps) =>
         );
     }
 
+    // View labels for segmented switcher
+    const VIEW_OPTIONS: { key: CalendarView; label: string }[] = [
+        { key: 'dayGridMonth',  label: t('dashboard.calendarButtons.month') },
+        { key: 'timeGridWeek',  label: t('dashboard.calendarButtons.week')  },
+        { key: 'timeGridDay',   label: t('dashboard.calendarButtons.day')   },
+    ];
+
     return (
         <div className="w-full bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="px-4 sm:px-6 lg:pl-8 lg:pr-6 pt-4 sm:pt-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                    <div>
-                        <h2 className="text-xl font-semibold text-gray-800">
-                            {t('dashboard.calendar')}
-                        </h2>
-                        {formatDateRange() && (
-                            <p className="mt-1 text-base sm:text-lg font-semibold text-gray-800">
-                                {formatDateRange()}
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
-                        {(user?.role === 'schooladmin' || user?.role === 'superadmin') && (
+            {/* ── Toolbar ── */}
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                {/* Left: nav arrows + date title */}
+                <div className="flex items-center gap-1 shrink-0">
+                    <button
+                        type="button"
+                        onClick={handlePrev}
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+                    >
+                        <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleNext}
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+                    >
+                        <ChevronRight className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Date range */}
+                <span className="text-sm font-semibold text-gray-800 min-w-0 truncate flex-1">
+                    {formatDateRange()}
+                </span>
+
+                {/* Right controls */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {/* Today */}
+                    <button
+                        type="button"
+                        onClick={handleTodayClick}
+                        className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                    >
+                        {t('dashboard.calendarButtons.today')}
+                    </button>
+
+                    {/* Segmented view switcher */}
+                    <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                        {VIEW_OPTIONS.map(({ key, label }) => (
                             <button
+                                key={key}
                                 type="button"
-                                onClick={() => setCreateEventModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
+                                onClick={() => handleViewChange(key)}
+                                className={`px-3 py-1.5 text-xs font-medium transition-colors border-r border-gray-200 last:border-r-0 ${
+                                    view === key
+                                        ? 'bg-violet-600 text-white'
+                                        : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                                }`}
                             >
-                                <Plus className="w-4 h-4" />
-                                {t('schedule.createEvent')}
+                                {label}
                             </button>
-                        )}
+                        ))}
+                    </div>
+
+                    {/* Create event (admin) */}
+                    {(user?.role === 'schooladmin' || user?.role === 'superadmin') && (
                         <button
                             type="button"
-                            onClick={handleTodayClick}
-                            className="flex items-center gap-1 sm:gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-xs sm:text-sm font-medium text-gray-700"
+                            onClick={() => setCreateEventModalOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 transition-colors"
                         >
-                            {t('dashboard.calendarButtons.today')}
+                            <Plus className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{t('schedule.createEvent')}</span>
                         </button>
-                        <div className="relative" ref={menuRef}>
-                        <button
-                            onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
-                            className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                            aria-label={t('dashboard.selectView')}
-                        >
-                            <Settings className="w-5 h-5 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-700 hidden sm:inline">
-                                {view === 'dayGridMonth'
-                                    ? t('dashboard.viewMonthly')
-                                    : view === 'timeGridWeek'
-                                      ? t('dashboard.viewWeekly')
-                                      : t('dashboard.viewDaily')}
-                            </span>
-                            <ChevronDown
-                                className={`w-4 h-4 text-gray-600 transition-transform ${
-                                    isViewMenuOpen ? 'rotate-180' : ''
-                                }`}
-                            />
-                        </button>
-                        {isViewMenuOpen && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                                <div className="py-1">
-                                    <button
-                                        onClick={() =>
-                                            handleViewChange('dayGridMonth')
-                                        }
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                                            view === 'dayGridMonth'
-                                                ? 'bg-purple-50 text-purple-700 font-medium'
-                                                : 'text-gray-700'
-                                        }`}
-                                    >
-                                        {t('dashboard.viewMonthly')}
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            handleViewChange('timeGridWeek')
-                                        }
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                                            view === 'timeGridWeek'
-                                                ? 'bg-purple-50 text-purple-700 font-medium'
-                                                : 'text-gray-700'
-                                        }`}
-                                    >
-                                        {t('dashboard.viewWeekly')}
-                                    </button>
-                                    <button
-                                        onClick={() =>
-                                            handleViewChange('timeGridDay')
-                                        }
-                                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                                            view === 'timeGridDay'
-                                                ? 'bg-purple-50 text-purple-700 font-medium'
-                                                : 'text-gray-700'
-                                        }`}
-                                    >
-                                        {t('dashboard.viewDaily')}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                        </div>
-                    </div>
+                    )}
+
+                    {/* Injected right slot (e.g. panel toggle from dashboard) */}
+                    {rightSlot}
                 </div>
+            </div>
+
+            {/* ── Calendar grid ── */}
+            <div className="px-4 pb-4 pt-0">
                 <div className="calendar-container">
                     <FullCalendar
                         ref={calendarRef}

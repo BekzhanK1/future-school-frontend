@@ -19,7 +19,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
             <div
                 className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
-                    sidebarOpen ? 'min-[576px]:ml-64' : 'lg:ml-64'
+                    sidebarOpen ? 'min-[576px]:ml-[240px]' : 'lg:ml-[240px]'
                 }`}
             >
                 <Navbar />

@@ -4,6 +4,18 @@ import { useRouter } from 'next/navigation';
 import Modal from '@/components/ui/Modal';
 import type { EventModalData } from '@/lib/modalController';
 import { useLocale } from '@/contexts/LocaleContext';
+import {
+    Clock,
+    MapPin,
+    User,
+    BookOpen,
+    Calendar,
+    Users,
+    ArrowRight,
+    X,
+    ClipboardList,
+    GraduationCap,
+} from 'lucide-react';
 
 interface EventModalProps {
     event: EventModalData | null;
@@ -11,173 +23,191 @@ interface EventModalProps {
     onClose: () => void;
 }
 
-export default function EventModal({
-    event,
-    isOpen,
-    onClose,
-}: EventModalProps) {
+const TYPE_CONFIG: Record<string, { label: string; accent: string; bg: string; icon: string }> = {
+    schedule:     { label: 'Урок',           accent: '#7c3aed', bg: '#f5f3ff', icon: '📚' },
+    test:         { label: 'Тест',           accent: '#0369a1', bg: '#f0f9ff', icon: '📝' },
+    assignment:   { label: 'Задание',        accent: '#c2410c', bg: '#fff7ed', icon: '📋' },
+    meeting:      { label: 'Собрание',       accent: '#065f46', bg: '#f0fdf4', icon: '👥' },
+    gathering:    { label: 'Встреча',        accent: '#065f46', bg: '#f0fdf4', icon: '👥' },
+    school_event: { label: 'Школьное событие', accent: '#be185d', bg: '#fdf2f8', icon: '🎓' },
+    other:        { label: 'Событие',        accent: '#374151', bg: '#f9fafb', icon: '📌' },
+};
+
+const AUDIENCE_LABELS: Record<string, string> = {
+    all: 'Для всех',
+    teachers: 'Для учителей',
+    class: 'Для класса',
+    specific: 'Выбранным пользователям',
+};
+
+function fmt(timeStr: string) {
+    return timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
+}
+
+function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+    return (
+        <div className="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
+            <div className="mt-0.5 w-5 flex-shrink-0 text-gray-400">{icon}</div>
+            <div className="min-w-0">
+                <p className="text-xs text-gray-400 leading-none mb-0.5">{label}</p>
+                <div className="text-sm font-medium text-gray-800 break-words">{value}</div>
+            </div>
+        </div>
+    );
+}
+
+export default function EventModal({ event, isOpen, onClose }: EventModalProps) {
     const router = useRouter();
     const { t, locale } = useLocale();
 
     if (!isOpen || !event) return null;
 
+    const cfg = TYPE_CONFIG[event.type ?? ''] ?? TYPE_CONFIG.other;
+    const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
+
+    const formattedDate = (() => {
+        try {
+            return new Date(event.start).toLocaleDateString(localeCode, {
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+            });
+        } catch { return event.start; }
+    })();
+
     const handleNavigate = () => {
-        if (event.url) {
-            router.push(event.url);
-            onClose();
-        }
-    };
-
-    const getEventTypeColor = (type?: string) => {
-        if (type === 'schedule') return 'rgb(219, 234, 254)';
-        if (type === 'assignment') return 'rgb(255, 237, 213)';
-        if (type === 'test') return 'rgb(224, 242, 254)';
-        return 'rgb(255, 237, 213)';
-    };
-
-    const getEventTypeText = (type?: string) => {
-        if (type === 'schedule') return t('events.schedule');
-        if (type === 'assignment') return t('events.assignment');
-        if (type === 'test') return t('events.test');
-        return t('events.event');
-    };
-
-    // Format time string to remove seconds (HH:MM:SS -> HH:MM)
-    const formatTimeString = (timeStr: string) => {
-        if (!timeStr) return '';
-        // Remove seconds from time string (HH:MM:SS -> HH:MM)
-        // Match pattern like "09:00:00" or "09:00:00 - 10:30:00" and remove :SS part
-        return timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
+        if (event.url) { router.push(event.url); onClose(); }
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md">
-            <div className="flex items-center justify-between mb-4">
-                <div
-                    className="px-3 py-1 rounded-full text-sm font-medium"
-                    style={{
-                        backgroundColor: getEventTypeColor(event.type),
-                        color: '#374151',
-                    }}
-                >
-                    {getEventTypeText(event.type)}
+        <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-sm">
+            {/* Color header strip */}
+            <div
+                className="rounded-xl mb-4 px-4 py-4 flex items-start justify-between gap-3"
+                style={{ background: cfg.bg, borderLeft: `4px solid ${cfg.accent}` }}
+            >
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-base">{cfg.icon}</span>
+                        <span
+                            className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={{ color: cfg.accent, background: `${cfg.accent}18` }}
+                        >
+                            {cfg.label}
+                        </span>
+                    </div>
+                    <h3 className="text-base font-bold text-gray-900 leading-snug break-words">
+                        {event.type === 'schedule' ? (event.subject || event.title) : event.title}
+                    </h3>
                 </div>
+                <button
+                    onClick={onClose}
+                    className="flex-shrink-0 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-colors mt-0.5"
+                >
+                    <X className="w-4 h-4" />
+                </button>
             </div>
 
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                {event.title}
-            </h3>
-
-            <div className="space-y-3">
-                <div className="flex items-center">
-                    <span className="text-gray-500 w-24">
-                        {t('modals.event.subject')}
-                    </span>
-                    <span className="font-medium">{event.subject}</span>
-                </div>
-
-                {event.type === 'schedule' && event.classroom && (
-                    <div className="flex items-center">
-                        <span className="text-gray-500 w-24">
-                            Класс
-                        </span>
-                        <span className="font-medium">{event.classroom}</span>
-                    </div>
+            {/* Info rows */}
+            <div className="divide-y divide-gray-100">
+                {event.time && (
+                    <InfoRow
+                        icon={<Clock className="w-4 h-4" />}
+                        label="Время"
+                        value={fmt(event.time)}
+                    />
                 )}
 
-                {event.type === 'schedule' && event.room && (
-                    <div className="flex items-center">
-                        <span className="text-gray-500 w-24">
-                            Кабинет
-                        </span>
-                        <span className="font-medium">{event.room}</span>
-                    </div>
+                <InfoRow
+                    icon={<Calendar className="w-4 h-4" />}
+                    label="Дата"
+                    value={<span className="capitalize">{formattedDate}</span>}
+                />
+
+                {event.subject && event.type !== 'schedule' && (
+                    <InfoRow
+                        icon={<BookOpen className="w-4 h-4" />}
+                        label={t('modals.event.subject')}
+                        value={event.subject}
+                    />
                 )}
 
                 {event.teacher && (
-                    <div className="flex items-center">
-                        <span className="text-gray-500 w-24">
-                            {t('modals.event.teacher')}
-                        </span>
-                        <span className="font-medium">{event.teacher}</span>
-                    </div>
+                    <InfoRow
+                        icon={<User className="w-4 h-4" />}
+                        label={t('modals.event.teacher')}
+                        value={event.teacher}
+                    />
                 )}
 
-                <div className="flex items-center">
-                    <span className="text-gray-500 w-24">
-                        {t('modals.event.time')}
-                    </span>
-                    <span className="font-medium">{formatTimeString(event.time)}</span>
-                </div>
+                {event.type === 'schedule' && event.classroom && (
+                    <InfoRow
+                        icon={<GraduationCap className="w-4 h-4" />}
+                        label="Класс"
+                        value={event.classroom}
+                    />
+                )}
 
-                <div className="flex items-center">
-                    <span className="text-gray-500 w-24">
-                        {t('modals.event.date')}
-                    </span>
-                    <span className="font-medium">
-                        {new Date(event.start).toLocaleDateString(
-                            locale === 'en' ? 'en-GB' : 'ru-RU',
-                            {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                            }
-                        )}
-                    </span>
-                </div>
+                {event.type === 'schedule' && event.room && (
+                    <InfoRow
+                        icon={<MapPin className="w-4 h-4" />}
+                        label="Кабинет"
+                        value={event.room}
+                    />
+                )}
+
+                {event.target_audience && (
+                    <InfoRow
+                        icon={<Users className="w-4 h-4" />}
+                        label="Аудитория"
+                        value={
+                            <div>
+                                <span>{AUDIENCE_LABELS[event.target_audience] ?? event.target_audience}</span>
+                                {event.target_audience === 'class' && event.subject_group_display && (
+                                    <span className="ml-1 text-gray-500">· {event.subject_group_display}</span>
+                                )}
+                                {event.target_audience === 'specific' && event.target_users && event.target_users.length > 0 && (
+                                    <ul className="mt-1 space-y-0.5">
+                                        {event.target_users.map(u => (
+                                            <li key={u.id} className="text-xs text-gray-500">
+                                                {[u.first_name, u.last_name].filter(Boolean).join(' ') || u.username}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        }
+                    />
+                )}
             </div>
 
+            {/* Description */}
             {event.description && event.type !== 'schedule' && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        {t('modals.event.description')}
-                    </h4>
-                    <p className="text-gray-600 text-sm">{event.description}</p>
-                </div>
-            )}
-
-            {(event.target_audience || (event.target_users && event.target_users.length > 0)) && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                        {locale === 'ru' ? 'Аудитория' : 'Audience'}
-                    </h4>
-                    <div className="text-gray-600 text-sm">
-                        {event.target_audience === 'all' && (locale === 'ru' ? 'Для всех' : 'For everyone')}
-                        {event.target_audience === 'teachers' && (locale === 'ru' ? 'Для учителей' : 'For teachers')}
-                        {event.target_audience === 'class' && event.subject_group_display && (
-                            <span>{locale === 'ru' ? 'Для класса: ' : 'For class: '}{event.subject_group_display}</span>
-                        )}
-                        {event.target_audience === 'specific' && event.target_users && event.target_users.length > 0 && (
-                            <div>
-                                <p className="mb-1">{locale === 'ru' ? 'Выбранным пользователям:' : 'Specific users:'}</p>
-                                <ul className="list-disc list-inside space-y-0.5">
-                                    {event.target_users.map((u) => (
-                                        <li key={u.id}>
-                                            {[u.first_name, u.last_name].filter(Boolean).join(' ').trim() || u.username} ({u.username})
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                <div className="mt-3 px-3 py-2.5 bg-gray-50 rounded-xl">
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <ClipboardList className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs font-medium text-gray-400">{t('modals.event.description')}</span>
                     </div>
+                    <p className="text-sm text-gray-700 leading-relaxed">{event.description}</p>
                 </div>
             )}
 
-            <div className="mt-6 flex justify-end gap-3">
-                {event.url && (
-                    <button
-                        onClick={handleNavigate}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        {t('modals.event.navigate')}
-                    </button>
-                )}
+            {/* Actions */}
+            <div className="mt-4 flex gap-2 justify-end">
                 <button
                     onClick={onClose}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                     {t('modals.event.close')}
                 </button>
+                {event.url && (
+                    <button
+                        onClick={handleNavigate}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+                        style={{ background: cfg.accent }}
+                    >
+                        {t('modals.event.navigate')}
+                        <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </div>
         </Modal>
     );

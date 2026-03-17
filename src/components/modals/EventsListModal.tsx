@@ -4,6 +4,7 @@ import Modal from '@/components/ui/Modal';
 import type { EventsListModalData, EventModalData } from '@/lib/modalController';
 import { modalController } from '@/lib/modalController';
 import { useLocale } from '@/contexts/LocaleContext';
+import { Clock, MapPin, User, GraduationCap, ArrowRight, X, CalendarDays } from 'lucide-react';
 
 interface EventsListModalProps {
     data: EventsListModalData | null;
@@ -11,204 +12,170 @@ interface EventsListModalProps {
     onClose: () => void;
 }
 
-export default function EventsListModal({
-    data,
-    isOpen,
-    onClose,
-}: EventsListModalProps) {
+const TYPE_CONFIG: Record<string, { label: string; accent: string; bg: string; dot: string }> = {
+    schedule:     { label: 'Урок',    accent: '#7c3aed', bg: '#f5f3ff', dot: '#7c3aed' },
+    test:         { label: 'Тест',    accent: '#0369a1', bg: '#f0f9ff', dot: '#0284c7' },
+    assignment:   { label: 'Задание', accent: '#c2410c', bg: '#fff7ed', dot: '#ea580c' },
+    meeting:      { label: 'Встреча', accent: '#065f46', bg: '#f0fdf4', dot: '#16a34a' },
+    gathering:    { label: 'Встреча', accent: '#065f46', bg: '#f0fdf4', dot: '#16a34a' },
+    school_event: { label: 'Событие', accent: '#be185d', bg: '#fdf2f8', dot: '#db2777' },
+    other:        { label: 'Событие', accent: '#374151', bg: '#f9fafb', dot: '#6b7280' },
+};
+
+function fmt(t: string) {
+    return t.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
+}
+
+export default function EventsListModal({ data, isOpen, onClose }: EventsListModalProps) {
     const { t, locale } = useLocale();
 
-    if (!isOpen || !data || !data.events || data.events.length === 0) return null;
+    if (!isOpen || !data?.events?.length) return null;
 
-    const getEventTypeColor = (type?: string) => {
-        if (type === 'schedule') return 'rgb(219, 234, 254)';
-        if (type === 'assignment') return 'rgb(255, 237, 213)';
-        if (type === 'test') return 'rgb(224, 242, 254)';
-        return 'rgb(255, 237, 213)';
-    };
+    const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
 
-    const getEventTypeText = (type?: string) => {
-        if (type === 'schedule') return t('events.schedule');
-        if (type === 'assignment') return t('events.assignment');
-        if (type === 'test') return t('events.test');
-        return t('events.event');
-    };
+    const formattedDate = (() => {
+        try {
+            return new Date(data.date).toLocaleDateString(localeCode, {
+                weekday: 'long', day: 'numeric', month: 'long',
+            });
+        } catch { return data.date; }
+    })();
 
-    // Format time string to remove seconds (HH:MM:SS -> HH:MM)
-    const formatTimeString = (timeStr: string) => {
-        if (!timeStr) return '';
-        // Remove seconds from time string (HH:MM:SS -> HH:MM)
-        // Match pattern like "09:00:00" or "09:00:00 - 10:30:00" and remove :SS part
-        return timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
-    };
-
-    const handleEventClick = (event: EventsListModalData['events'][0]) => {
+    const handleEventClick = (ev: EventsListModalData['events'][0]) => {
         onClose();
-        const eventModalData: EventModalData = {
-            title: event.title,
-            start: event.start,
-            subject: event.subject,
-            teacher: event.teacher,
-            time: event.time,
-            description: event.description || '',
-            url: event.url,
-            type: event.type as EventModalData['type'],
-            room: event.room,
-            classroom: event.classroom,
-            target_audience: event.target_audience,
-            subject_group_display: event.subject_group_display,
-            target_users: event.target_users,
+        const payload: EventModalData = {
+            title: ev.title,
+            start: ev.start,
+            subject: ev.subject,
+            teacher: ev.teacher,
+            time: ev.time,
+            description: ev.description || '',
+            url: ev.url,
+            type: ev.type as EventModalData['type'],
+            room: ev.room,
+            classroom: ev.classroom,
+            target_audience: ev.target_audience,
+            subject_group_display: ev.subject_group_display,
+            target_users: ev.target_users,
         };
-        modalController.open('event-modal', eventModalData);
+        modalController.open('event-modal', payload);
     };
 
-    // Get time range from events
-    const getTimeRange = () => {
-        if (!data.events || data.events.length === 0) return '';
-        const times = data.events.map(e => e.time).filter(Boolean);
-        if (times.length === 0) return '';
-        if (times.length === 1) return times[0];
-        // If all events have same time, show it once
-        const uniqueTimes = [...new Set(times)];
-        if (uniqueTimes.length === 1) return uniqueTimes[0];
-        // Otherwise show range
-        return `${times[0]} - ${times[times.length - 1]}`;
-    };
+    // Unique time slots for the header summary
+    const timeSlots = [...new Set(data.events.map(e => e.time).filter(Boolean).map(fmt))];
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-2xl">
-            <div className="mb-4">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {t('events.eventCount', { count: data.events.length })}
-                </h3>
-                <p className="text-sm text-gray-600">
-                    {(() => {
-                        const d = new Date(data.date);
-                        if (locale === 'kk') {
-                            const weekdays = [
-                                'жексенбі',
-                                'дүйсенбі',
-                                'сейсенбі',
-                                'сәрсенбі',
-                                'бейсенбі',
-                                'жұма',
-                                'сенбі',
-                            ];
-                            const months = [
-                                'қаңтар',
-                                'ақпан',
-                                'наурыз',
-                                'сәуір',
-                                'мамыр',
-                                'маусым',
-                                'шілде',
-                                'тамыз',
-                                'қыркүйек',
-                                'қазан',
-                                'қараша',
-                                'желтоқсан',
-                            ];
-                            const w = weekdays[d.getDay()];
-                            const m = months[d.getMonth()];
-                            return `${w}, ${d.getDate()} ${m} ${d.getFullYear()} ж.`;
-                        }
-                        return d.toLocaleDateString(
-                            locale === 'en' ? 'en-GB' : 'ru-RU',
-                            {
-                                weekday: 'long',
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                            }
-                        );
-                    })()}
-                    {getTimeRange() && ` • ${getTimeRange()}`}
-                </p>
-            </div>
-
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                {data.events.map((event, index) => (
-                    <div
-                        key={index}
-                        className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                        onClick={() => handleEventClick(event)}
-                    >
-                        <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div
-                                        className="px-2 py-1 rounded-full text-xs font-medium"
-                                        style={{
-                                            backgroundColor: getEventTypeColor(event.type),
-                                            color: '#374151',
-                                        }}
-                                    >
-                                        {getEventTypeText(event.type)}
-                                    </div>
-                                </div>
-                                
-                                <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                                    {event.title}
-                                </h4>
-
-                                <div className="space-y-1 text-sm">
-                                    {event.subject && (
-                                        <div className="flex items-center">
-                                            <span className="text-gray-500 w-20">
-                                                {t('modals.event.subject')}
-                                            </span>
-                                            <span className="font-medium">{event.subject}</span>
-                                        </div>
-                                    )}
-
-                                    {event.type === 'schedule' && event.classroom && (
-                                        <div className="flex items-center">
-                                            <span className="text-gray-500 w-20">Класс</span>
-                                            <span className="font-medium">{event.classroom}</span>
-                                        </div>
-                                    )}
-
-                                    {event.type === 'schedule' && event.room && (
-                                        <div className="flex items-center">
-                                            <span className="text-gray-500 w-20">Кабинет</span>
-                                            <span className="font-medium">{event.room}</span>
-                                        </div>
-                                    )}
-
-                                    {event.teacher && (
-                                        <div className="flex items-center">
-                                            <span className="text-gray-500 w-20">
-                                                {t('modals.event.teacher')}
-                                            </span>
-                                            <span className="font-medium">{event.teacher}</span>
-                                        </div>
-                                    )}
-
-                                    {event.time && (
-                                        <div className="flex items-center">
-                                            <span className="text-gray-500 w-20">
-                                                {t('modals.event.time')}
-                                            </span>
-                                            <span className="font-medium">{formatTimeString(event.time)}</span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {event.description && (
-                                    <div className="mt-3 pt-3 border-t border-gray-200">
-                                        <p className="text-sm text-gray-600">{event.description}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+        <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 mb-5">
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <CalendarDays className="w-4 h-4 text-violet-500" />
+                        <span className="text-xs font-semibold text-violet-600 uppercase tracking-wide capitalize">
+                            {formattedDate}
+                        </span>
                     </div>
-                ))}
-            </div>
-
-            <div className="mt-6 flex justify-end">
+                    <h3 className="text-lg font-bold text-gray-900">
+                        {data.events.length} {data.events.length === 1 ? 'событие' : data.events.length < 5 ? 'события' : 'событий'} одновременно
+                    </h3>
+                    {timeSlots.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1">
+                            <Clock className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-xs text-gray-500">{timeSlots.join(', ')}</span>
+                        </div>
+                    )}
+                </div>
                 <button
                     onClick={onClose}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                    <X className="w-4 h-4" />
+                </button>
+            </div>
+
+            {/* Event cards */}
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                {data.events.map((ev, idx) => {
+                    const cfg = TYPE_CONFIG[ev.type] ?? TYPE_CONFIG.other;
+                    const timeStr = ev.time ? fmt(ev.time) : '';
+
+                    return (
+                        <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleEventClick(ev)}
+                            className="w-full text-left group rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all duration-150"
+                        >
+                            <div className="flex items-stretch">
+                                {/* Left color bar */}
+                                <div
+                                    className="w-1 flex-shrink-0"
+                                    style={{ background: cfg.dot }}
+                                />
+
+                                <div className="flex-1 px-3 py-3 min-w-0">
+                                    {/* Top row: type badge + time */}
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <span
+                                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                            style={{ color: cfg.accent, background: cfg.bg }}
+                                        >
+                                            {cfg.label}
+                                        </span>
+                                        {timeStr && (
+                                            <span className="text-[11px] text-gray-400 font-medium flex-shrink-0">
+                                                {timeStr}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Subject / title */}
+                                    <p className="text-sm font-semibold text-gray-900 leading-snug mb-2 truncate">
+                                        {ev.type === 'schedule' ? (ev.subject || ev.title) : ev.title}
+                                    </p>
+
+                                    {/* Meta chips */}
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        {ev.type === 'schedule' && ev.classroom && (
+                                            <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                                                <GraduationCap className="w-3 h-3" />
+                                                {ev.classroom}
+                                            </span>
+                                        )}
+                                        {ev.room && (
+                                            <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                                                <MapPin className="w-3 h-3" />
+                                                каб. {ev.room}
+                                            </span>
+                                        )}
+                                        {ev.teacher && (
+                                            <span className="flex items-center gap-1 text-[11px] text-gray-500">
+                                                <User className="w-3 h-3" />
+                                                {ev.teacher}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {ev.description && (
+                                        <p className="mt-2 text-xs text-gray-400 truncate">{ev.description}</p>
+                                    )}
+                                </div>
+
+                                {/* Arrow */}
+                                <div className="flex items-center pr-3 text-gray-300 group-hover:text-gray-500 transition-colors">
+                                    <ArrowRight className="w-4 h-4" />
+                                </div>
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Footer */}
+            <div className="mt-4 flex justify-end">
+                <button
+                    onClick={onClose}
+                    className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                     {t('modals.event.close')}
                 </button>

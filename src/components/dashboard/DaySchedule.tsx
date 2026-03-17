@@ -153,7 +153,7 @@ export default function DaySchedule({
             )}
 
             {/* Events list */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-80">
+            <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '120px' }}>
                 {dayEvents.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                         <div className="w-14 h-14 rounded-full bg-violet-50 flex items-center justify-center mb-3">
