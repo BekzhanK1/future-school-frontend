@@ -5,7 +5,6 @@ import { getIconByType, IconType } from './IconUtils';
 import { DeleteButton } from './WeekMaterialsPanel.client';
 import { modalController } from '@/lib/modalController';
 import axiosInstance from '@/lib/axios';
-import Image from 'next/image';
 import TemplateLinkIndicator from '@/components/courseTemplates/TemplateLinkIndicator';
 import { resourceService } from '@/services/resourceService';
 import { useUser } from '@/contexts/UserContext';
@@ -222,6 +221,21 @@ export function SharedLinkItem({
                 </div>
 
                 <div className="flex-1 min-w-0 max-w-full overflow-hidden">
+                    {isImage && item.file && (
+                        // Use plain <img> instead of next/image because presigned URLs
+                        // come from an external domain and can include long querystrings.
+                        <img
+                            src={item.file}
+                            alt={item.title}
+                            className="mb-2 max-h-48 w-auto rounded-md border border-gray-100 object-contain bg-gray-50"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                                // Hide broken thumbnails; preview still works on click.
+                                e.currentTarget.style.display = 'none';
+                            }}
+                        />
+                    )}
                     {!isText && (
                         <button
                             onClick={handleClick}
@@ -270,14 +284,6 @@ export function SharedLinkItem({
                     )}
                 </div>
             </div>
-            {isImage && (
-                <Image
-                    src={item.file || ''}
-                    alt={item.title}
-                    width={240}
-                    height={180}
-                />
-            )}
         </div>
     );
 }
