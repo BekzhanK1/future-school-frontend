@@ -99,19 +99,19 @@ export default function CreateAnnouncementToParentsModal({
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title="Объявление родителям класса" maxWidth="max-w-2xl">
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label className="mb-2 block text-sm font-semibold text-gray-800">
                         Класс/предмет * (можно несколько)
                     </label>
                     {loadingSubjects ? (
-                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600" />
+                        <div className="flex w-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5">
+                            <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-violet-600" />
                         </div>
                     ) : (
-                        <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto">
+                        <div className="max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2">
                             {subjectGroups.map(sg => (
-                                <label key={sg.id} className="flex items-center gap-2 py-2">
+                                <label key={sg.id} className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-gray-50">
                                     <input
                                         type="checkbox"
                                         checked={formData.subject_groups.includes(sg.id)}
@@ -128,7 +128,7 @@ export default function CreateAnnouncementToParentsModal({
                                                 }));
                                             }
                                         }}
-                                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-2 focus:ring-violet-200"
                                     />
                                     <span className="text-sm text-gray-700">{displayName(sg)}</span>
                                 </label>
@@ -136,46 +136,53 @@ export default function CreateAnnouncementToParentsModal({
                         </div>
                     )}
                 </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Заголовок *</label>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label className="mb-2 block text-sm font-semibold text-gray-800">Заголовок *</label>
                     <input
                         type="text"
                         value={formData.title}
                         onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
                         placeholder="Заголовок объявления"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                         required
                     />
                 </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Текст *</label>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label className="mb-2 block text-sm font-semibold text-gray-800">Текст *</label>
                     <textarea
                         value={formData.content}
                         onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))}
                         placeholder="Текст объявления для родителей"
                         rows={5}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 resize-none"
+                        className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                         required
                     />
                 </div>
-                <div className="flex items-center gap-3">
-                    <input
-                        type="checkbox"
-                        id="allow_replies_parents"
-                        checked={formData.allow_replies}
-                        onChange={e => setFormData(prev => ({ ...prev, allow_replies: e.target.checked }))}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
-                    />
-                    <label htmlFor="allow_replies_parents" className="text-sm font-medium text-gray-700">
-                        Разрешить родителям оставлять комментарии
-                    </label>
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <input
+                            type="checkbox"
+                            id="allow_replies_parents"
+                            checked={formData.allow_replies}
+                            onChange={e => setFormData(prev => ({ ...prev, allow_replies: e.target.checked }))}
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-2 focus:ring-violet-200"
+                        />
+                        <div>
+                            <label htmlFor="allow_replies_parents" className="text-sm font-semibold text-gray-800">
+                                Разрешить родителям оставлять комментарии
+                            </label>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Если выключить, родители смогут только прочитать объявление.
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex justify-end gap-3 pt-4 border-t">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 pt-2">
                     <button
                         type="button"
                         onClick={handleClose}
                         disabled={submitting}
-                        className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
                     >
                         Отмена
                     </button>
@@ -187,7 +194,7 @@ export default function CreateAnnouncementToParentsModal({
                             !formData.content?.trim() ||
                             formData.subject_groups.length === 0
                         }
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                        className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
                     >
                         {submitting ? 'Отправка...' : 'Отправить родителям'}
                     </button>

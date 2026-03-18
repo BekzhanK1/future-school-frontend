@@ -74,40 +74,53 @@ export default function NewMessagePage() {
 
     if (loadingContacts) {
         return (
-            <div className="flex justify-center items-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            <div className="mx-auto max-w-3xl p-4 sm:p-6">
+                <div className="animate-pulse rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="mb-4 h-5 w-1/3 rounded bg-gray-100" />
+                    <div className="mb-2 h-3 w-2/3 rounded bg-gray-100" />
+                    <div className="h-3 w-1/2 rounded bg-gray-100" />
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="max-w-2xl mx-auto p-6">
-            <button
-                onClick={() => router.back()}
-                className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
-            >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Назад к сообщениям
-            </button>
+        <div className="mx-auto max-w-3xl p-4 sm:p-6">
+            <div className="mb-4">
+                <button
+                    onClick={() => router.back()}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Назад к сообщениям
+                </button>
+            </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Новое сообщение</h1>
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="mb-4">
+                    <h1 className="text-2xl font-bold text-gray-900 sm:text-[28px]">
+                        Новое сообщение
+                    </h1>
+                    <p className="mt-1 text-sm text-gray-500">
+                        Выберите получателя и напишите сообщение.
+                    </p>
+                </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+                    <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                         {error}
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <label className="mb-2 block text-sm font-semibold text-gray-800">
                             Кому
                         </label>
                         <select
                             value={selectedParticipantId || ''}
                             onChange={(e) => setSelectedParticipantId(Number(e.target.value))}
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                             required
                         >
                             <option value="" disabled>-- Выберите получателя --</option>
@@ -121,8 +134,8 @@ export default function NewMessagePage() {
                         </select>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <label className="mb-2 block text-sm font-semibold text-gray-800">
                             Тема
                         </label>
                         <input
@@ -130,34 +143,34 @@ export default function NewMessagePage() {
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="Введите тему сообщения"
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                            className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                             required
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <label className="mb-2 block text-sm font-semibold text-gray-800">
                             Сообщение
                         </label>
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
                             placeholder="Текст сообщения..."
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[150px] resize-y"
+                            className="min-h-[150px] w-full resize-y rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                             required
                         />
                     </div>
 
-                    <div className="flex justify-end">
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <button
                             type="submit"
                             disabled={loading || !selectedParticipantId || !title.trim() || !content.trim()}
-                            className="flex items-center px-6 py-3 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
-                                <Loader2 className="w-5 h-5 animate-spin mx-auto text-white mr-2" />
+                                <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
-                                <Send className="w-5 h-5 mr-2" />
+                                <Send className="h-5 w-5" />
                             )}
                             Отправить сообщение
                         </button>

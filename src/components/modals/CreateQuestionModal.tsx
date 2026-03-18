@@ -181,16 +181,16 @@ export default function CreateQuestionModal({
             title={t('qa.createQuestion')}
             maxWidth="max-w-2xl"
         >
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Subject Group Dropdown - Hidden if defaultSubjectGroupId is provided */}
                 {!defaultSubjectGroupId && (
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <label className="mb-2 block text-sm font-semibold text-gray-800">
                             {t('qa.subjectGroup')} *
                         </label>
                         {loadingSubjects ? (
-                            <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                            <div className="flex w-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5">
+                                <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-violet-600" />
                             </div>
                         ) : (
                             <select
@@ -201,7 +201,7 @@ export default function CreateQuestionModal({
                                         subject_group: e.target.value,
                                     })
                                 }
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                                 required
                             >
                                 <option value="">
@@ -219,8 +219,8 @@ export default function CreateQuestionModal({
                 )}
 
                 {/* Question Title */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label className="mb-2 block text-sm font-semibold text-gray-800">
                         {t('qa.questionTitle')} *
                     </label>
                     <input
@@ -229,15 +229,15 @@ export default function CreateQuestionModal({
                         onChange={e =>
                             setFormData({ ...formData, title: e.target.value })
                         }
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                         placeholder={t('qa.questionTitlePlaceholder')}
                         required
                     />
                 </div>
 
                 {/* Question Content */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label className="mb-2 block text-sm font-semibold text-gray-800">
                         {t('qa.questionContent')} *
                     </label>
                     <textarea
@@ -249,17 +249,20 @@ export default function CreateQuestionModal({
                             })
                         }
                         rows={6}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        className="w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                         placeholder={t('qa.questionContentPlaceholder')}
                         required
                     />
                 </div>
 
                 {/* File attachments (optional, max 10) */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('forms.file') || 'Файлы'} (до {FORUM_MAX_FILES}, макс. {FORUM_MAX_SIZE_MB} МБ)
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <label className="mb-1 block text-sm font-semibold text-gray-800">
+                        {t('forms.file') || 'Файлы'}
                     </label>
+                    <p className="mb-3 text-xs text-gray-500">
+                        до {FORUM_MAX_FILES} файлов, максимум {FORUM_MAX_SIZE_MB} МБ каждый
+                    </p>
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -272,7 +275,7 @@ export default function CreateQuestionModal({
                         {questionFiles.map((file, idx) => (
                             <div
                                 key={idx}
-                                className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+                                className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
                             >
                                 <Paperclip className="w-4 h-4 text-gray-500" />
                                 <span className="truncate max-w-[180px]">{file.name}</span>
@@ -293,7 +296,7 @@ export default function CreateQuestionModal({
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center gap-2 px-3 py-2 text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-sm"
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
                         >
                             <Paperclip className="w-4 h-4" />
                             Добавить файл
@@ -302,7 +305,8 @@ export default function CreateQuestionModal({
                 </div>
 
                 {/* Public Checkbox */}
-                <div className="flex items-start">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="flex items-start">
                     <div className="flex items-center h-5">
                         <input
                             id="is_public"
@@ -314,13 +318,13 @@ export default function CreateQuestionModal({
                                     is_public: e.target.checked,
                                 })
                             }
-                            className="w-4 h-4 text-purple-600 bg-gray-100 border-gray-300 rounded focus:ring-purple-500 focus:ring-2"
+                            className="h-4 w-4 rounded border-gray-300 bg-gray-100 text-violet-600 focus:ring-2 focus:ring-violet-200"
                         />
                     </div>
                     <div className="ml-3 text-sm">
                         <label
                             htmlFor="is_public"
-                            className="font-medium text-gray-700 cursor-pointer"
+                            className="cursor-pointer font-semibold text-gray-800"
                         >
                             {user?.role === 'parent'
                                 ? 'В общий форум класса (видят учитель и все родители)'
@@ -332,15 +336,16 @@ export default function CreateQuestionModal({
                                 : t('qa.makePublicDescription')}
                         </p>
                     </div>
+                    </div>
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 pt-2">
                     <button
                         type="button"
                         onClick={handleClose}
                         disabled={submitting}
-                        className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {t('actions.cancel')}
                     </button>
@@ -352,7 +357,7 @@ export default function CreateQuestionModal({
                             !formData.content ||
                             !formData.subject_group
                         }
-                        className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                        className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                     >
                         {submitting ? t('qa.posting') : t('qa.postQuestion')}
                     </button>

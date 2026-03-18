@@ -104,14 +104,14 @@ export default function ForumPostItem({
                 <div className="flex flex-col items-center">
                     {depth > 0 && (
                         <div
-                            className="w-[2px] bg-gray-300 flex-shrink-0"
+                            className="w-[2px] bg-gray-200 flex-shrink-0"
                             style={{ height: '28px', marginBottom: '8px' }}
                         ></div>
                     )}
                     {hasReplies && depth < MAX_DEPTH && (
                         <button
                             onClick={() => setIsExpanded(!isExpanded)}
-                            className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0 mb-2"
+                            className="mb-2 flex-shrink-0 rounded-lg border border-gray-200 bg-white p-1 text-gray-600 transition-colors hover:bg-gray-100"
                             title={isExpanded ? 'Collapse' : 'Expand'}
                         >
                             {isExpanded ? (
@@ -123,7 +123,7 @@ export default function ForumPostItem({
                     )}
                     {hasReplies && depth < MAX_DEPTH && isExpanded && (
                         <div
-                            className="w-[2px] bg-gray-300 flex-shrink-0 flex-1"
+                            className="w-[2px] bg-gray-200 flex-shrink-0 flex-1"
                             style={{ minHeight: '100px' }}
                         ></div>
                     )}
@@ -132,12 +132,12 @@ export default function ForumPostItem({
                 {/* Post content */}
                 <div className="flex-1 ml-3">
                     <div
-                        className={`bg-white rounded-lg shadow-sm border p-4 transition-all ${
+                        className={`rounded-2xl border p-4 shadow-sm transition-all ${
                             post.is_answer
-                                ? 'border-green-200 bg-green-50'
+                                ? 'border-emerald-200 bg-emerald-50/60'
                                 : depth === 0
-                                  ? 'border-gray-200'
-                                  : 'border-gray-200 bg-gray-50'
+                                  ? 'border-gray-100 bg-white'
+                                  : 'border-gray-100 bg-gray-50/70'
                         }`}
                     >
                         <div className="flex items-start justify-between mb-3">
@@ -154,7 +154,7 @@ export default function ForumPostItem({
                                     </span>
                                 )}
                                 {post.is_answer && (
-                                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded">
+                                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
                                         Ответ преподавателя
                                     </span>
                                 )}
@@ -171,8 +171,11 @@ export default function ForumPostItem({
                         {/* File Attachments: use attachments array (includes legacy single file) */}
                         {(post.attachments && post.attachments.length > 0 ? post.attachments : post.file ? [{ id: null, file: post.file, position: 0, legacy: true }] : []).map((att, idx) => {
                             const mediaUrl = att.file ? getMediaUrl(att.file) : '';
+                            const fileName = att.file
+                                ? att.file.split('/').pop()?.split('?')[0] || 'Attached File'
+                                : 'Attached File';
                             return (
-                            <div key={att.id ?? `legacy-${idx}`} className="mb-3 overflow-hidden rounded-lg border border-gray-200">
+                            <div key={att.id ?? `legacy-${idx}`} className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
                                 {mediaUrl && isImageFile(att.file) ? (
                                     <div className="max-w-md">
                                         <a href={mediaUrl} target="_blank" rel="noopener noreferrer">
@@ -189,16 +192,16 @@ export default function ForumPostItem({
                                         href={mediaUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                        className="flex items-center gap-3 bg-gray-50 p-3 transition-colors hover:bg-gray-100"
                                     >
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                            <FileText className="w-5 h-5 text-blue-600" />
+                                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-violet-100">
+                                            <FileText className="h-5 w-5 text-violet-600" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium text-gray-900 truncate">
-                                                {att.file.split('/').pop()?.split('?')[0] || 'Attached File'}
+                                                {fileName}
                                             </p>
-                                            <p className="text-xs text-blue-600">Скачать</p>
+                                            <p className="text-xs text-violet-600">Скачать</p>
                                         </div>
                                     </a>
                                 ) : null}
@@ -214,9 +217,9 @@ export default function ForumPostItem({
                                         key={emoji}
                                         onClick={() => handleReaction(emoji)}
                                         disabled={isLoadingReaction}
-                                        className={`px-2 py-1 rounded-full text-sm font-medium transition-all ${
+                                        className={`rounded-full px-2 py-1 text-sm font-medium transition-all ${
                                             userReactions.includes(emoji)
-                                                ? 'bg-blue-100 text-blue-700 border border-blue-300 scale-110'
+                                                ? 'scale-110 border border-violet-300 bg-violet-100 text-violet-700'
                                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         } ${isLoadingReaction ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     >
@@ -230,7 +233,7 @@ export default function ForumPostItem({
                                     <button
                                         onClick={() => setShowReactionMenu(!showReactionMenu)}
                                         disabled={isLoadingReaction}
-                                        className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-600 hover:text-gray-900"
+                                        className="rounded-full p-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
                                         title="Add reaction"
                                     >
                                         <Plus className="w-4 h-4" />
@@ -238,7 +241,7 @@ export default function ForumPostItem({
 
                                     {/* Reaction Menu - Dropdown */}
                                     {showReactionMenu && (
-                                        <div className="absolute bottom-full mb-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-2 flex gap-1 z-10">
+                                        <div className="absolute bottom-full left-0 z-10 mb-2 flex gap-1 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
                                             {REACTION_EMOJIS.map(emoji => (
                                                 <button
                                                     key={emoji}
@@ -257,13 +260,13 @@ export default function ForumPostItem({
                         </div>
 
                         {/* Action buttons */}
-                        <div className="pt-2 border-t border-gray-200 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 pt-2">
                             {canAnswer && depth < MAX_DEPTH && (
                                 <button
                                     onClick={() =>
                                         onReplyClick(post.id, post.author_username, post.content)
                                     }
-                                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                                    className="text-xs font-semibold text-violet-600 transition-colors hover:text-violet-700"
                                 >
                                     💬 Ответить
                                 </button>

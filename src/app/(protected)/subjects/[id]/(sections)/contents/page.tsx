@@ -113,16 +113,21 @@ export default function SubjectContents() {
 
     return (
         <div>
-            {/* Slim sticky action bar — only the forum button */}
-            <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-                <div className="px-4 py-2.5 flex items-center gap-3">
-                    <button
-                        onClick={handleForumClick}
-                        className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                    >
-                        <MessageCircle className="w-4 h-4" />
-                        {t('qa.title')}
-                    </button>
+            {/* Sticky action bar */}
+            <div className="sticky top-0 z-40 border-b border-gray-100 bg-white/95 backdrop-blur-sm">
+                <div className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gradient-to-r from-white to-violet-50/50 px-3 py-2 shadow-sm">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500">
+                            Обсуждения и вопросы по теме
+                        </span>
+                        <button
+                            onClick={handleForumClick}
+                            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+                        >
+                            <MessageCircle className="h-4 w-4" />
+                            {t('qa.title')}
+                        </button>
+                    </div>
                 </div>
             </div>
 

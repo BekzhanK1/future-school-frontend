@@ -228,13 +228,24 @@ export default function SubjectQADetailPage() {
     const isTeacher = user?.role === 'teacher';
     const isStudent = user?.role === 'student';
     const canAnswer = isTeacher || isStudent;
-    const isAuthor = thread?.created_by === parseInt(user?.id || '0');
+    const isAnnouncement =
+        thread?.type === 'announcement' ||
+        thread?.type === 'announcement_to_parents';
 
     if (loading) {
         return (
-            <div className="max-w-4xl mx-auto p-6">
-                <div className="flex justify-center items-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <div className="mx-auto max-w-5xl p-4 sm:p-6">
+                <div className="space-y-4">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="animate-pulse rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                        >
+                            <div className="mb-3 h-5 w-1/2 rounded bg-gray-100" />
+                            <div className="mb-2 h-3 w-2/3 rounded bg-gray-100" />
+                            <div className="h-3 w-1/3 rounded bg-gray-100" />
+                        </div>
+                    ))}
                 </div>
             </div>
         );
@@ -242,15 +253,15 @@ export default function SubjectQADetailPage() {
 
     if (error || !thread) {
         return (
-            <div className="max-w-4xl mx-auto p-6">
+            <div className="mx-auto max-w-5xl p-4 sm:p-6">
                 <button
                     onClick={() => router.push(`/subjects/${subjectId}/qa`)}
-                    className="flex items-center gap-2 text-purple-600 hover:text-purple-700 mb-4"
+                    className="mb-4 inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
                 >
-                    <ArrowLeft className="w-5 h-5" />
+                    <ArrowLeft className="h-4 w-4" />
                     {t('qa.backToQA')}
                 </button>
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     {error || t('qa.questionNotFound')}
                 </div>
             </div>
@@ -261,51 +272,68 @@ export default function SubjectQADetailPage() {
     const answerPosts = thread.posts.slice(1);
 
     return (
-        <div className="max-w-4xl mx-auto p-6">
-            <div className="flex items-center gap-4 mb-6">
-                <button
-                    onClick={() =>
-                        router.push(`/subjects/${subjectId}/contents`)
-                    }
-                    className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors"
-                >
-                    <BookOpen className="w-5 h-5" />
-                    {subject?.course_name || t('subject.contents')}
-                </button>
-                <button
-                    onClick={() => router.push(`/subjects/${subjectId}/qa`)}
-                    className="flex items-center gap-2 text-purple-600 hover:text-purple-700 transition-colors"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    {t('qa.backToQA')}
-                </button>
+        <div className="mx-auto max-w-5xl p-4 sm:p-6">
+            <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={() => router.push(`/subjects/${subjectId}/contents`)}
+                            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+                        >
+                            <BookOpen className="h-4 w-4" />
+                            {subject?.course_name || t('subject.contents')}
+                        </button>
+                        <button
+                            onClick={() => router.push(`/subjects/${subjectId}/qa`)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            {t('qa.backToQA')}
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Clock className="h-4 w-4" />
+                        <span>{formatDate(thread.created_at)}</span>
+                    </div>
+                </div>
             </div>
 
             {/* Question Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                <div className="flex items-start justify-between mb-4">
+            <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+                <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-2xl font-bold text-gray-900">
+                        <div className="mb-2 flex flex-wrap items-center gap-2.5">
+                            <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
                                 {thread.title}
                             </h1>
                             {thread.is_resolved && (
-                                <CheckCircle2 className="w-6 h-6 text-green-600" />
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Решено
+                                </span>
                             )}
                             {!thread.is_public && (
-                                <Lock className="w-6 h-6 text-gray-400" />
+                                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                                    <Lock className="h-3.5 w-3.5" />
+                                    Приватно
+                                </span>
                             )}
-                            {(thread.type === 'announcement' || thread.type === 'announcement_to_parents') && thread.archived && (
-                                <span className="px-2 py-1 text-xs font-medium bg-gray-200 text-gray-700 rounded">
+                            {isAnnouncement && thread.archived && (
+                                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
                                     {thread.type === 'announcement_to_parents'
                                         ? 'В архиве (родители не видят)'
                                         : 'Архивировано (ученики не видят)'}
                                 </span>
                             )}
+                            {thread.type === 'question' && (
+                                <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                                    Вопрос
+                                </span>
+                            )}
                         </div>
                         {(thread.subject_group_course_name || thread.subject_group_classroom_display) && (
-                            <div className="flex items-center gap-2 text-sm text-purple-600 font-medium">
-                                <BookOpen className="w-4 h-4" />
+                            <div className="flex items-center gap-2 text-sm font-semibold text-violet-700">
+                                <BookOpen className="h-4 w-4" />
                                 {thread.subject_group_course_name && thread.subject_group_classroom_display && (
                                     <span>
                                         {thread.subject_group_course_name} • {thread.subject_group_classroom_display}
@@ -320,19 +348,19 @@ export default function SubjectQADetailPage() {
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        {isTeacher && (thread.type === 'announcement' || thread.type === 'announcement_to_parents') && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        {isTeacher && isAnnouncement && (
                             thread.archived ? (
                                 <button
                                     onClick={handleUnarchive}
-                                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                    className="rounded-lg bg-gray-700 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
                                 >
                                     Вернуть из архива
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleArchive}
-                                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                    className="rounded-lg bg-amber-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
                                 >
                                     {thread.type === 'announcement_to_parents'
                                         ? 'Скрыть от родителей (архив)'
@@ -343,7 +371,7 @@ export default function SubjectQADetailPage() {
                         {isTeacher && !thread.is_resolved && thread.type === 'question' && (
                             <button
                                 onClick={handleMarkResolved}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                className="rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                             >
                                 {t('qa.markAsResolved')}
                             </button>
@@ -351,21 +379,21 @@ export default function SubjectQADetailPage() {
                     </div>
                 </div>
 
-                <div className="mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                        <User className="w-4 h-4" />
+                <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50/70 px-3.5 py-2.5">
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                        <User className="h-4 w-4" />
                         <span className="font-medium">
                             {thread.created_by_username}
                         </span>
                         <span>•</span>
-                        <Clock className="w-4 h-4" />
+                        <Clock className="h-4 w-4" />
                         <span>{formatDate(thread.created_at)}</span>
                     </div>
                 </div>
 
                 {questionPost && (
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                        <p className="text-gray-800 whitespace-pre-wrap">
+                    <div className="mb-1 rounded-2xl border border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800 sm:text-[15px]">
                             {questionPost.content}
                         </p>
                         {(questionPost.attachments?.length || questionPost.file) && (
@@ -377,9 +405,9 @@ export default function SubjectQADetailPage() {
                                             href={getMediaUrl(att.file)}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-blue-600 hover:bg-gray-50"
+                                            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-violet-700 transition-colors hover:bg-gray-100"
                                         >
-                                            <Paperclip className="w-4 h-4 flex-shrink-0" />
+                                            <Paperclip className="h-4 w-4 flex-shrink-0" />
                                             {att.file.split('/').pop()?.split('?')[0] || 'Файл'}
                                         </a>
                                     )
@@ -391,18 +419,23 @@ export default function SubjectQADetailPage() {
             </div>
 
             {/* Answers Section */}
-            <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5" />
-                    {t('qa.answers')} ({answerPosts.length})
-                </h2>
+            <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+                <div className="mb-4 flex items-center justify-between gap-2">
+                    <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900 sm:text-xl">
+                        <MessageSquare className="h-5 w-5 text-violet-600" />
+                        {t('qa.answers')}
+                    </h2>
+                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                        {answerPosts.length}
+                    </span>
+                </div>
 
                 {answerPosts.length === 0 ? (
-                    <div className="bg-gray-50 rounded-lg p-8 text-center">
-                        <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+                        <MessageSquare className="mx-auto mb-3 h-12 w-12 text-gray-400" />
                         <p className="text-gray-600">{t('qa.noAnswers')}</p>
                         {canAnswer && (
-                            <p className="text-gray-500 text-sm mt-2">
+                            <p className="mt-2 text-sm text-gray-500">
                                 {t('qa.beFirstToAnswer')}
                             </p>
                         )}
@@ -425,12 +458,12 @@ export default function SubjectQADetailPage() {
 
             {/* Answer Form */}
             {canAnswer && thread.allow_replies && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+                    <h3 className="mb-4 text-base font-bold text-gray-900 sm:text-lg">
                         {t('qa.yourAnswer')}
                     </h3>
                     {thread.is_resolved && (
-                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="mb-4 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3">
                             <p className="text-sm text-yellow-800">
                                 {t('qa.questionResolvedNote')}
                             </p>
@@ -438,7 +471,7 @@ export default function SubjectQADetailPage() {
                     )}
                     <form onSubmit={handleSubmitAnswer}>
                         {replyingToPostId && (
-                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                            <div className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3">
                                 <div className="flex-1">
                                     <p className="text-sm text-blue-800">
                                         Ты отвечаешь на пост от <strong>{replyingToAuthor}</strong>
@@ -454,7 +487,7 @@ export default function SubjectQADetailPage() {
                                         setReplyingToAuthor('');
                                         setReplyingToContent('');
                                     }}
-                                    className="text-blue-600 hover:text-blue-700 font-bold ml-2"
+                                    className="rounded-lg px-2 py-1 text-sm font-bold text-blue-700 transition-colors hover:bg-sky-100"
                                 >
                                     ✕
                                 </button>
@@ -464,7 +497,7 @@ export default function SubjectQADetailPage() {
                             value={answerContent}
                             onChange={e => setAnswerContent(e.target.value)}
                             rows={6}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-4"
+                            className="mb-4 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200"
                             placeholder={t('qa.answerPlaceholder')}
                             required
                         />
@@ -474,9 +507,9 @@ export default function SubjectQADetailPage() {
                                 {answerFiles.map((file, idx) => (
                                     <div
                                         key={idx}
-                                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm"
+                                        className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
                                     >
-                                        <Paperclip className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                        <Paperclip className="h-4 w-4 flex-shrink-0 text-gray-500" />
                                         <span className="truncate max-w-[160px]">{file.name}</span>
                                         <span className="text-xs text-gray-400 flex-shrink-0">
                                             ({(file.size / 1024).toFixed(1)} KB)
@@ -510,9 +543,9 @@ export default function SubjectQADetailPage() {
                                 <button
                                     type="button"
                                     onClick={() => answerFileInputRef.current?.click()}
-                                    className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg transition-colors text-sm font-medium"
+                                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100"
                                 >
-                                    <Paperclip className="w-4 h-4" />
+                                    <Paperclip className="h-4 w-4" />
                                     {t('forms.file') || 'Прикрепить файл'}
                                     {answerFiles.length > 0 && ` (${answerFiles.length}/${FORUM_MAX_FILES})`}
                                 </button>
@@ -520,9 +553,9 @@ export default function SubjectQADetailPage() {
                             <button
                                 type="submit"
                                 disabled={submitting || !answerContent.trim()}
-                                className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                                className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-gray-400"
                             >
-                                <Send className="w-5 h-5" />
+                                <Send className="h-5 w-5" />
                                 {submitting
                                     ? t('qa.posting')
                                     : t('qa.postAnswer')}

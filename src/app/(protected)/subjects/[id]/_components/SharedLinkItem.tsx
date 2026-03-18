@@ -221,21 +221,6 @@ export function SharedLinkItem({
                 </div>
 
                 <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-                    {isImage && item.file && (
-                        // Use plain <img> instead of next/image because presigned URLs
-                        // come from an external domain and can include long querystrings.
-                        <img
-                            src={item.file}
-                            alt={item.title}
-                            className="mb-2 max-h-48 w-auto rounded-md border border-gray-100 object-contain bg-gray-50"
-                            loading="lazy"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                                // Hide broken thumbnails; preview still works on click.
-                                e.currentTarget.style.display = 'none';
-                            }}
-                        />
-                    )}
                     {!isText && (
                         <button
                             onClick={handleClick}
@@ -248,6 +233,28 @@ export function SharedLinkItem({
                     )}
                     {isText && (
                         <span className="block break-all">{item.title}</span>
+                    )}
+                    {isImage && item.file && (
+                        <button
+                            type="button"
+                            onClick={handleClick}
+                            className="mt-2 block max-w-fit rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            title="Открыть изображение"
+                        >
+                            {/* Use plain <img> instead of next/image because presigned URLs
+                            come from an external domain and can include long querystrings. */}
+                            <img
+                                src={item.file}
+                                alt={item.title}
+                                className="max-h-48 w-auto rounded-md border border-gray-100 object-contain bg-gray-50 transition-opacity hover:opacity-90"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                    // Hide broken thumbnails; preview still works via title click.
+                                    e.currentTarget.style.display = 'none';
+                                }}
+                            />
+                        </button>
                     )}
                     {(isTeacher || isAdmin) && (
                         <div className="mt-1">

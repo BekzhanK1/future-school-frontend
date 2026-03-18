@@ -73,37 +73,53 @@ export default function SubjectSectionsLayout({
     const [subject, setSubject] = useState<SubjectData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [subjectGroupMembers, setSubjectGroupMembers] = useState([]);
+    const [subjectGroupMembers, setSubjectGroupMembers] = useState<any[]>([]);
     const [isCopyTestModalOpen, setIsCopyTestModalOpen] = useState(false);
     const [courseId, setCourseId] = useState<number | null>(null);
-    console.log(subject, 'subject');
-    console.log(subjectGroupMembers, 'subjectGroupMembers');
 
     useEffect(() => {
-        const fetchSubject = async () => {
+        let isMounted = true;
+
+        const fetchSubjectData = async () => {
             setLoading(true);
             setError(null);
-            const response = await axiosInstance.get(
-                `/subject-groups/${subjectId}/`
-            );
-            setSubject(response.data);
-            // Extract course_id from subject
-            if (response.data.course) {
-                setCourseId(response.data.course);
+            try {
+                const [subjectResponse, membersResponse] = await Promise.all([
+                    axiosInstance.get(`/subject-groups/${subjectId}/`),
+                    axiosInstance.get(`/subject-groups/${subjectId}/members/`),
+                ]);
+
+                if (!isMounted) return;
+
+                setSubject(subjectResponse.data);
+                setCourseId(subjectResponse.data?.course || null);
+                setSubjectGroupMembers(
+                    Array.isArray(membersResponse.data) ? membersResponse.data : []
+                );
+            } catch (err: any) {
+                if (!isMounted) return;
+                console.error('Error loading subject page data:', err);
+                const message =
+                    err?.response?.data?.detail ||
+                    err?.response?.data?.error ||
+                    'Не удалось загрузить данные предмета';
+                setError(message);
+                setSubject(null);
+                setCourseId(null);
+                setSubjectGroupMembers([]);
+            } finally {
+                if (isMounted) setLoading(false);
             }
-            setLoading(false);
         };
-        const fetchSubjectGroupMembers = async () => {
-            const response = await axiosInstance.get(
-                `/subject-groups/${subjectId}/members/`
-            );
-            setSubjectGroupMembers(response.data);
+
+        void fetchSubjectData();
+
+        return () => {
+            isMounted = false;
         };
-        fetchSubject();
-        fetchSubjectGroupMembers();
     }, [subjectId]);
 
-    console.log(pathName, pathName.split('/')[pathName.split('/').length - 1]);
+    const currentTab = pathName.split('/')[pathName.split('/').length - 1];
 
     // Show loading state
     if (loading) {
@@ -141,59 +157,71 @@ export default function SubjectSectionsLayout({
     }
 
     return (
-        <div className="mx-auto sm:px-4 sm:py-8 p-0">
-            <div className="mb-8 bg-white p-8">
-                <div className="flex gap-4 font-bold mb-2 flex-wrap">
-                    <h1 className="text-2xl">{subject?.course_name}</h1>
-                    <div className="bg-[rgba(15,174,246,1)] rounded-md flex justify-center items-center px-1 self-center">
-                        <p className="text-white text-sm">
-                            {subject.teacher_fullname}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex justify-between md:flex-row flex-col">
-                    <ul className="flex gap-2 font-bold flex-wrap">
-                        {tabs.map(tab => {
-                            const active =
-                                pathName.split('/')[
-                                    pathName.split('/').length - 1
-                                ] == tab.href;
-                            const url = `${parentPath}/${tab.href}`;
-                            return (
-                                <Link
-                                    key={tab.href}
-                                    href={url}
-                                    className={[
-                                        'px-2 py-1 rounded-md transition-colors',
-                                        active
-                                            ? 'bg-[rgba(246,246,246,1)] text-black'
-                                            : 'text-[rgba(16,16,16,0.4)] hover:bg-gray-100',
-                                    ].join(' ')}
-                                >
-                                    {t(`subject.${tab.key}`)}
-                                </Link>
-                            );
-                        })}
-                    </ul>
-                    {user?.role === 'teacher' && (
-                        <div className="flex items-center gap-2">
-                            {courseId && (
-                                <button
-                                    onClick={() => setIsCopyTestModalOpen(true)}
-                                    className="bg-green-600 flex items-center gap-2 px-4 py-1 rounded-md transition-colors text-white font-bold hover:bg-green-700"
-                                >
-                                    <Copy className="w-4 h-4" />
-                                    Скопировать из шаблона
-                                </button>
-                            )}
-                            <Link
-                                href={`/create-test/?subject=${subjectId}`}
-                                className="bg-[#694CFD] flex items-center gap-2 px-4 py-1 rounded-md transition-colors text-white font-bold w-fit"
-                            >
-                                {t('test.createTest')}
-                            </Link>
+        <div className="mx-auto p-0 sm:px-4 sm:py-6">
+            <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
+                                    Предмет
+                                </span>
+                                {subject?.teacher_fullname && (
+                                    <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-700">
+                                        {subject.teacher_fullname}
+                                    </span>
+                                )}
+                            </div>
+                            <h1 className="truncate text-2xl font-bold text-gray-900 sm:text-[28px]">
+                                {subject?.course_name}
+                            </h1>
                         </div>
-                    )}
+
+                        {user?.role === 'teacher' && (
+                            <div className="flex flex-wrap items-center gap-2">
+                                {courseId && (
+                                    <button
+                                        onClick={() => setIsCopyTestModalOpen(true)}
+                                        className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                        Скопировать из шаблона
+                                    </button>
+                                )}
+                                <Link
+                                    href={`/create-test/?subject=${subjectId}`}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    {t('test.createTest')}
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="rounded-xl border border-gray-100 bg-gray-50/70 p-1.5">
+                        <ul className="flex flex-wrap gap-1.5">
+                            {tabs.map(tab => {
+                                const active = currentTab === tab.href;
+                                const url = `${parentPath}/${tab.href}`;
+                                return (
+                                    <li key={tab.href}>
+                                        <Link
+                                            href={url}
+                                            className={[
+                                                'inline-flex items-center rounded-lg px-3 py-1.5 text-sm font-semibold transition-all',
+                                                active
+                                                    ? 'bg-white text-violet-700 shadow-sm ring-1 ring-violet-100'
+                                                    : 'text-gray-500 hover:bg-white hover:text-gray-900',
+                                            ].join(' ')}
+                                        >
+                                            {t(`subject.${tab.key}`)}
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
                 </div>
             </div>
             <SubjectContext.Provider
