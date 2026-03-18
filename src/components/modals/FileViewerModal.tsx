@@ -56,8 +56,23 @@ export default function FileViewerModal({
     };
 
     const getFileType = () => {
-        const extension = file.url.split('.').pop()?.toLowerCase();
-        return extension || 'unknown';
+        try {
+            const parsed = new URL(file.url, window.location.origin);
+            const pathname = parsed.pathname;
+            const lastSegment = pathname.split('/').pop() || '';
+            const extension = lastSegment.includes('.')
+                ? lastSegment.split('.').pop()?.toLowerCase()
+                : undefined;
+            return extension || 'unknown';
+        } catch {
+            // Fallback for unexpected/relative URLs
+            const withoutQuery = file.url.split('?')[0] || '';
+            const lastSegment = withoutQuery.split('/').pop() || '';
+            const extension = lastSegment.includes('.')
+                ? lastSegment.split('.').pop()?.toLowerCase()
+                : undefined;
+            return extension || 'unknown';
+        }
     };
 
     const fileType = getFileType();
