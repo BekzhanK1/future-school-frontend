@@ -50,9 +50,17 @@ function minutesToStr(m: number): string {
     return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
-// Convert absolute minutes to grid row (0-indexed)
-function minutesToRow(minutes: number): number {
-    return Math.max(0, (minutes - HOUR_START * 60) / GRID_STEP);
+/** Integer row index + span for CSS Grid (fractional lines are invalid and break placement). */
+function slotToGridRows(startMin: number, endMin: number): { rowStart: number; rowSpan: number } {
+    const origin = HOUR_START * 60;
+    const rowStart = Math.max(0, Math.floor((startMin - origin) / GRID_STEP));
+    const rowEndExclusive = Math.max(
+        rowStart + 1,
+        Math.ceil((endMin - origin) / GRID_STEP)
+    );
+    let rowSpan = rowEndExclusive - rowStart;
+    rowSpan = Math.max(1, Math.min(rowSpan, TOTAL_ROWS - rowStart));
+    return { rowStart, rowSpan };
 }
 
 const SUBJECT_COLORS = [
@@ -245,8 +253,7 @@ export default function SchedulePage() {
             seen.add(s.id);
             const startMin = timeToMinutes(s.start_time);
             const endMin = timeToMinutes(s.end_time);
-            const rowStart = minutesToRow(startMin);
-            const rowSpan = Math.max(1, Math.ceil((endMin - startMin) / GRID_STEP));
+            const { rowStart, rowSpan } = slotToGridRows(startMin, endMin);
             blocks.push({ ...s, rowStart, rowSpan });
         }
         return blocks;
