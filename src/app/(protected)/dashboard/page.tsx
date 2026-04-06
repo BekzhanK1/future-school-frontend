@@ -23,6 +23,7 @@ export interface DayScheduleEvent {
     textColor: string;
     type?: string;
     url?: string;
+    sortKeyMinutes?: number;
 }
 
 const PANEL_KEY = 'dashboard_right_panel_open';

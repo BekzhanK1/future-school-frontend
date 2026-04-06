@@ -25,6 +25,22 @@ interface Event {
     target_users?: Array<{ id: number; username: string; first_name?: string; last_name?: string }>;
     type?: string;
     url?: string;
+    sortKeyMinutes?: number;
+}
+
+function formatLocalYmd(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function dayEventSortMinutes(ev: Event): number {
+    if (ev.sortKeyMinutes != null) return ev.sortKeyMinutes;
+    const head = ev.time?.split(' - ')[0]?.trim() ?? '';
+    const m = head.match(/^(\d{1,2}):(\d{2})/);
+    if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    return 24 * 60;
 }
 
 interface DayScheduleProps {
@@ -57,17 +73,13 @@ export default function DaySchedule({
     const isTeacher = user?.role === 'teacher';
 
     const dayEvents = useMemo(() => {
-        const dateString = date.toISOString().split('T')[0];
+        const dateString = formatLocalYmd(date);
         return events
             .filter(ev => {
                 const isHomework = ev.title === 'Домашнее Задание';
                 return !isHomework && ev.start === dateString;
             })
-            .sort((a, b) => {
-                const tA = a.time?.replace(':', '') ?? '0000';
-                const tB = b.time?.replace(':', '') ?? '0000';
-                return tA.localeCompare(tB);
-            });
+            .sort((a, b) => dayEventSortMinutes(a) - dayEventSortMinutes(b));
     }, [date, events]);
 
     const handleEventClick = (ev: Event) => {

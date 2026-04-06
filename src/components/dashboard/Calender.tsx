@@ -54,6 +54,7 @@ interface ScheduleSlot {
     quarter?: number | null;
     subject_group_course_name?: string;
     subject_group_classroom_display?: string;
+    subject_group_classroom_id?: number | null;
     subject_group_teacher_fullname?: string;
     subject_group_teacher_username?: string;
     subject_group_color?: string;
@@ -119,6 +120,38 @@ export interface DayScheduleEventFromCalendar {
     subject_group_display?: string;
     target_users?: Array<{ id: number; username: string; first_name?: string; last_name?: string }>;
     url?: string;
+    /** Minutes from midnight for stable sidebar sort (optional) */
+    sortKeyMinutes?: number;
+}
+
+function formatLocalYmd(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function parseScheduleTimeStartMinutes(
+    timeStr: string | undefined | null,
+    isoFallback?: string | null
+): number {
+    if (timeStr) {
+        const head = timeStr.split(' - ')[0]?.trim() ?? '';
+        const m = head.match(/^(\d{1,2}):(\d{2})/);
+        if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    }
+    if (isoFallback) {
+        const d = new Date(isoFallback);
+        if (!Number.isNaN(d.getTime())) return d.getHours() * 60 + d.getMinutes();
+    }
+    return 24 * 60;
+}
+
+function eventLocalYmdEquals(isoStart: string | undefined | null, dateStr: string): boolean {
+    if (!isoStart) return false;
+    const d = new Date(isoStart);
+    if (Number.isNaN(d.getTime())) return false;
+    return formatLocalYmd(d) === dateStr;
 }
 
 interface CalendarProps {
@@ -653,8 +686,9 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     text: '#111827',
                 } : getSubjectColors(subjectName);
 
+                const localYmd = formatLocalYmd(currentDate);
                 events.push({
-                    id: `schedule-${slot.id}-${currentDate.toISOString().split('T')[0]}`,
+                    id: `schedule-${slot.id}-${localYmd}`,
                     title: title,
                     start: startDateTime.toISOString(),
                     end: endDateTime.toISOString(),
@@ -668,6 +702,10 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         subject: subjectName,
                         room: slot.room,
                         classroom: classroomName,
+                        classroomId:
+                            slot.subject_group_classroom_id != null
+                                ? slot.subject_group_classroom_id
+                                : null,
                         teacher: teacherName, // Only last name for display
                         teacherFullName: teacherFullName, // Keep full name for modal
                         time: timeStr,
@@ -723,7 +761,19 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         currentStart.getFullYear() === otherStart.getFullYear();
                     
                     if (!sameDay) continue;
-                    
+
+                    const currentClassId =
+                        currentEvent.extendedProps?.classroomId ?? null;
+                    const otherClassId =
+                        otherEvent.extendedProps?.classroomId ?? null;
+                    if (
+                        currentClassId == null ||
+                        otherClassId == null ||
+                        currentClassId !== otherClassId
+                    ) {
+                        continue;
+                    }
+
                     // Check if events overlap in time
                     const currentStartTime = currentStart.getTime();
                     const currentEndTime = currentEnd.getTime();
@@ -953,19 +1003,17 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
     const getEventsForDay = useCallback(
         (date: Date | string): DayScheduleEventFromCalendar[] => {
             const dateStr =
-                typeof date === 'string'
-                    ? date
-                    : date.toISOString().split('T')[0];
+                typeof date === 'string' ? date : formatLocalYmd(date);
             const dayEvents: DayScheduleEventFromCalendar[] = [];
             for (const ev of calendarEvents) {
                 const start = ev.start;
-                if (!start || !String(start).startsWith(dateStr)) continue;
+                if (!start || !eventLocalYmdEquals(String(start), dateStr)) continue;
                 const props = (ev as any).extendedProps || {};
                 const isGrouped = props?.isGrouped && props?.groupedEvents?.length;
                 if (isGrouped) {
                     for (const sub of props.groupedEvents) {
                         const subStart = sub.start;
-                        if (!subStart || !String(subStart).startsWith(dateStr))
+                        if (!subStart || !eventLocalYmdEquals(String(subStart), dateStr))
                             continue;
                         const subProps = sub.extendedProps || {};
                         let timeStr = subProps.time || '';
@@ -976,6 +1024,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                                 minute: '2-digit',
                             });
                         }
+                        const displayTime = timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
                         // URL для модалки/перехода
                         let url: string | undefined;
                         const subType = subProps.type;
@@ -1002,13 +1051,17 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                             start: dateStr,
                             subject: subProps.subject || '',
                             teacher: subProps.teacherFullName || subProps.teacher || '',
-                            time: timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1'),
+                            time: displayTime,
                             description: subProps.description || '',
                             backgroundColor: ev.backgroundColor || 'rgb(219, 234, 254)',
                             borderColor: ev.borderColor || ev.backgroundColor || 'rgb(147, 197, 253)',
                             textColor: ev.textColor || '#1e40af',
                             type: subProps.type,
                             url,
+                            sortKeyMinutes: parseScheduleTimeStartMinutes(
+                                subProps.time || displayTime,
+                                sub.start
+                            ),
                         });
                     }
                 } else {
@@ -1069,14 +1122,17 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         subject_group_display: props.subject_group_display,
                         target_users: props.target_users_details,
                         url,
+                        sortKeyMinutes: parseScheduleTimeStartMinutes(
+                            props.time || timeStr,
+                            typeof ev.start === 'string' ? ev.start : null
+                        ),
                     });
                 }
             }
-            dayEvents.sort((a, b) => {
-                const tA = a.time ? a.time.replace(':', '') : '0000';
-                const tB = b.time ? b.time.replace(':', '') : '0000';
-                return tA.localeCompare(tB);
-            });
+            dayEvents.sort(
+                (a, b) =>
+                    (a.sortKeyMinutes ?? 24 * 60) - (b.sortKeyMinutes ?? 24 * 60)
+            );
             return dayEvents;
         },
         [calendarEvents]
