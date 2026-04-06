@@ -187,7 +187,9 @@
         "passwordChanged": "Пароль успешно изменен",
         "passwordChangeError": "Не удалось изменить пароль",
         "savingPassword": "Изменение пароля...",
-        "changePasswordButton": "Изменить пароль"
+        "changePasswordButton": "Изменить пароль",
+        "mustChangePasswordTitle": "Необходимо сменить пароль",
+        "mustChangePasswordDescription": "По соображениям безопасности задайте новый пароль. После сохранения войдите снова."
     },
     "dashboard": {
         "welcome": "Добро пожаловать",

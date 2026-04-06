@@ -187,7 +187,9 @@
         "passwordChanged": "Password successfully changed",
         "passwordChangeError": "Failed to change password",
         "savingPassword": "Saving...",
-        "changePasswordButton": "Change password"
+        "changePasswordButton": "Change password",
+        "mustChangePasswordTitle": "You must change your password",
+        "mustChangePasswordDescription": "For security, set a new password now. You will sign in again after saving."
     },
     "dashboard": {
         "welcome": "Welcome",

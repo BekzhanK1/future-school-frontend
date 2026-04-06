@@ -22,6 +22,8 @@ export interface User {
         }>;
         subjects?: string[];
     };
+    /** From API: require password change (e.g. after import or reset). */
+    must_change_password?: boolean;
     // Note: Teachers don't have teacher_data in the current API structure
 }
 

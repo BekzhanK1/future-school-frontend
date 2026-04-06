@@ -187,7 +187,9 @@
         "passwordChanged": "Пароль сәтті өзгертілді",
         "passwordChangeError": "Парольді өзгерту сәтсіз аяқталды",
         "savingPassword": "Парольді сақталуда...",
-        "changePasswordButton": "Парольді өзгерту"
+        "changePasswordButton": "Парольді өзгерту",
+        "mustChangePasswordTitle": "Парольді өзгерту қажет",
+        "mustChangePasswordDescription": "Қауіпсіздік үшін жаңа пароль орнатыңыз. Сақтағаннан кейін қайта кіріңіз."
     },
     "dashboard": {
         "welcome": "Қош келдіңіз",

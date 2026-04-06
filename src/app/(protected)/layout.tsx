@@ -2,6 +2,7 @@
 import Sidebar from '@/components/layout/Sidebar';
 import Navbar from '@/components/layout/Navbar';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
+import ForcePasswordChangeGate from '@/components/auth/ForcePasswordChangeGate';
 import { useUserState, useUserActions } from '@/contexts/UserContext';
 import { SidebarProvider, useSidebar } from '@/contexts/SidebarContext';
 import { redirect } from 'next/navigation';
@@ -39,7 +40,7 @@ export default function ProtectedLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const { isAuthenticated, isLoading } = useUserState();
+    const { isAuthenticated, isLoading, user } = useUserState();
     const { logout } = useUserActions();
 
     useEffect(() => {
@@ -67,6 +68,10 @@ export default function ProtectedLayout({
     // Don't render protected content if not authenticated
     if (!isAuthenticated) {
         return null;
+    }
+
+    if (user?.must_change_password) {
+        return <ForcePasswordChangeGate />;
     }
 
     return (
