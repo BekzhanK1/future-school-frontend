@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, BookOpen, Users, FileText, Search, Edit, Trash2, Layers, ChevronDown } from 'lucide-react';
+import { Plus, BookOpen, Users, FileText, Search, Edit, Trash2, Layers, RefreshCw } from 'lucide-react';
 import { useUserState } from '@/contexts/UserContext';
 import { courseService } from '@/services/courseService';
 import type { CourseWithStats, Course } from '@/types/course';
 import { useLocale } from '@/contexts/LocaleContext';
 import CreateCourseModal from './_components/CreateCourseModal';
 import BulkCreateSubjectGroupsModal from './_components/BulkCreateSubjectGroupsModal';
+import SyncAllCoursesModal from './_components/SyncAllCoursesModal';
 
 const LANG_META: Record<string, { label: string; bg: string; text: string }> = {
     kazakh:  { label: 'Қаз', bg: 'bg-blue-100',   text: 'text-blue-700' },
@@ -41,6 +42,7 @@ export default function CoursesPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
     const [isBulkCreateModalOpen, setIsBulkCreateModalOpen] = useState(false);
+    const [syncAllModalOpen, setSyncAllModalOpen] = useState(false);
 
     useEffect(() => {
         if (user && !['superadmin', 'schooladmin'].includes(user.role)) {
@@ -90,6 +92,14 @@ export default function CoursesPage() {
         return Array.from(set).sort((a, b) => a - b);
     }, [courses]);
 
+    const courseLabelMap = useMemo(
+        () =>
+            Object.fromEntries(
+                courses.map((c) => [c.id, `${c.name} (${c.course_code})`])
+            ) as Record<number, string>,
+        [courses]
+    );
+
     const filteredCourses = useMemo(() => courses.filter((c) => {
         const q = searchQuery.toLowerCase();
         const matchesSearch = !q ||
@@ -122,6 +132,14 @@ export default function CoursesPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
+                        <button
+                            type="button"
+                            onClick={() => setSyncAllModalOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium shadow-sm"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            Синхронизировать всё
+                        </button>
                         <button
                             onClick={() => setIsBulkCreateModalOpen(true)}
                             className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm font-medium shadow-sm"
@@ -306,6 +324,13 @@ export default function CoursesPage() {
                 isOpen={isBulkCreateModalOpen}
                 onClose={() => setIsBulkCreateModalOpen(false)}
                 onSuccess={() => { setIsBulkCreateModalOpen(false); fetchCourses(); }}
+            />
+            <SyncAllCoursesModal
+                isOpen={syncAllModalOpen}
+                onClose={() => setSyncAllModalOpen(false)}
+                courseIds={courses.map((c) => c.id)}
+                courseLabels={courseLabelMap}
+                onSuccess={() => fetchCourses()}
             />
         </div>
     );
