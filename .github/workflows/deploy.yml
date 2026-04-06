@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: deploy-frontend
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -15,41 +15,6 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # 1. Скачиваем код репозитория на виртуальную машину GitHub Actions
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # 2. Настраиваем Docker Buildx (движок, который поддерживает кэширование)
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # 3. Собираем образ с использованием кэша и сразу сохраняем в tar-архив
-      - name: Build and export Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile.prod
-          tags: future-frontend:latest
-          outputs: type=docker,dest=frontend-image.tar
-          
-          # ВОТ ЭТОТ БЛОК НУЖНО РАЗБЛОКИРОВАТЬ:
-          build-args: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-            
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # 4. Перекидываем архив на твой сервер
-      - name: Copy Image to Server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "frontend-image.tar"
-          target: "future-school/future-school-frontend/" # Путь относительно домашней папки
-
-      # 5. Распаковываем архив на сервере и резко перезапускаем
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -61,22 +26,7 @@ jobs:
           script: |
             set -euo pipefail
             cd ~/future-school/future-school-frontend
-            
-            # 1. ПОДТЯГИВАЕМ СВЕЖИЕ КОНФИГИ ИЗ GIT ПРЯМО НА СЕРВЕРЕ
             git pull origin main
-            
-            # 2. Гасим старые контейнеры
-            docker compose -f docker-compose.prod.yml down --remove-orphans
-            
-            # 3. Удаляем старый образ, чтобы Docker точно подхватил новый
-            docker rmi future-frontend:latest || true
-            
-            # 4. Загружаем новый образ из архива
-            docker load -i frontend-image.tar
-            
-            # 5. Поднимаем контейнер (--force-recreate гарантирует обновление)
-            docker compose -f docker-compose.prod.yml up --force-recreate --no-build -d
-            
-            # 6. Убираем за собой мусор
-            rm frontend-image.tar
-            docker system prune -f || true
+            export DOCKER_BUILDKIT=1
+            export COMPOSE_DOCKER_CLI_BUILD=1
+            docker compose -f docker-compose.prod.yml up -d --build --force-recreate

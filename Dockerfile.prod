@@ -16,7 +16,8 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache,id=frontend-next-cache \
+    npm run build
 
 # --- ЭТАП 3: Финальный образ (максимально легкий) ---
 FROM node:20-alpine AS runner
