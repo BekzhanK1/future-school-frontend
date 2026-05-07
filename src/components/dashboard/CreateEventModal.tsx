@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import axiosInstance from '@/lib/axios';
+import {
+    datetimeLocalValueToUtcIso,
+    nowToDatetimeLocalInAppZone,
+    utcIsoToDatetimeLocalValue,
+} from '@/lib/datetimeLocal';
+import AppZoneDateTimePicker from '@/components/ui/AppZoneDateTimePicker';
 import { useLocale } from '@/contexts/LocaleContext';
 import { X, Search } from 'lucide-react';
 
@@ -57,11 +63,6 @@ const TARGET_AUDIENCE_OPTIONS = [
     { value: 'specific', labelRu: 'Выбранным пользователям', labelEn: 'Specific users' },
 ];
 
-function toLocalISO(d: Date): string {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
-}
-
 export default function CreateEventModal({
     isOpen,
     onClose,
@@ -79,13 +80,14 @@ export default function CreateEventModal({
     const [userSearchLoading, setUserSearchLoading] = useState(false);
     const [selectedUsers, setSelectedUsers] = useState<UserOption[]>([]);
 
-    const now = new Date();
-    const defaultEnd = new Date(now.getTime() + 60 * 60 * 1000);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [type, setType] = useState('meeting');
-    const [startAt, setStartAt] = useState(toLocalISO(now));
-    const [endAt, setEndAt] = useState(toLocalISO(defaultEnd));
+    const [startAt, setStartAt] = useState(nowToDatetimeLocalInAppZone);
+    const [endAt, setEndAt] = useState(() => {
+        const end = new Date(Date.now() + 60 * 60 * 1000);
+        return utcIsoToDatetimeLocalValue(end.toISOString());
+    });
     const [isAllDay, setIsAllDay] = useState(false);
     const [location, setLocation] = useState('');
     const [targetAudience, setTargetAudience] = useState('all');
@@ -93,8 +95,8 @@ export default function CreateEventModal({
     const targetUserIds = selectedUsers.map((u) => u.id);
 
     useEffect(() => {
-        if (initialStart) setStartAt(initialStart.slice(0, 16));
-        if (initialEnd) setEndAt(initialEnd.slice(0, 16));
+        if (initialStart) setStartAt(utcIsoToDatetimeLocalValue(initialStart));
+        if (initialEnd) setEndAt(utcIsoToDatetimeLocalValue(initialEnd));
     }, [initialStart, initialEnd]);
 
     useEffect(() => {
@@ -145,8 +147,12 @@ export default function CreateEventModal({
         }
         setLoading(true);
         try {
-            const startISO = new Date(startAt).toISOString();
-            const endISO = new Date(endAt).toISOString();
+            const startISO = datetimeLocalValueToUtcIso(startAt);
+            const endISO = datetimeLocalValueToUtcIso(endAt);
+            if (!startISO || !endISO) {
+                setSubmitError(isRu ? 'Некорректная дата или время' : 'Invalid date or time');
+                return;
+            }
             const payload: CreateEventPayload = {
                 title: title.trim(),
                 description: description.trim(),
@@ -247,24 +253,26 @@ export default function CreateEventModal({
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 {isRu ? 'Начало' : 'Start'} *
                             </label>
-                            <input
-                                type="datetime-local"
+                            <AppZoneDateTimePicker
                                 value={startAt}
-                                onChange={(e) => setStartAt(e.target.value)}
+                                onChange={setStartAt}
+                                uiLocale={locale}
                                 required
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                popperClassName="z-[500]"
                             />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 {isRu ? 'Окончание' : 'End'} *
                             </label>
-                            <input
-                                type="datetime-local"
+                            <AppZoneDateTimePicker
                                 value={endAt}
-                                onChange={(e) => setEndAt(e.target.value)}
+                                onChange={setEndAt}
+                                uiLocale={locale}
                                 required
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500"
+                                popperClassName="z-[500]"
                             />
                         </div>
                     </div>

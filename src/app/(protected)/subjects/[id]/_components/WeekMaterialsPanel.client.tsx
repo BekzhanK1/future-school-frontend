@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ChevronDown, Plus, Trash2, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Plus, Trash2, RefreshCw, Eye, EyeOff, Pencil } from 'lucide-react';
 import type { WeekMaterialsData, WeekItem } from './WeekMaterialsSection';
 import { useUserState, useUser } from '@/contexts/UserContext';
 import { modalController } from '@/lib/modalController';
@@ -13,6 +13,8 @@ import { useLocale } from '@/contexts/LocaleContext';
 import TemplateLinkIndicator from '@/components/courseTemplates/TemplateLinkIndicator';
 import { assignmentService } from '@/services/assignmentService';
 import { testService } from '@/services/testService';
+import { getDisplayFileName } from '@/lib/fileDisplayName';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 interface WeekMaterialsPanelProps {
     data: WeekMaterialsData;
     courseSectionId?: number;
@@ -127,7 +129,7 @@ function handleFileView(
         modalController.open('file-viewer', {
             file: {
                 url: fileUrl,
-                title: filename,
+                title: getDisplayFileName(fileUrl, filename || fileData.title),
                 type: fileData.type,
             },
         });
@@ -147,6 +149,7 @@ function TaskItem({
     onRefresh?: () => void;
     t: (key: string) => string;
 }) {
+    const { user } = useUserState();
     const { state } = useUser();
     const isAdmin = state.user?.role === 'superadmin' || state.user?.role === 'schooladmin';
     const isSuperAdmin = state.user?.role === 'superadmin';
@@ -305,6 +308,25 @@ function TaskItem({
                     >
                         <RefreshCw className="w-4 h-4" />
                         <span>Синхронизировать</span>
+                    </button>
+                )}
+                {isTeacher && typeof user?.id === 'number' && (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            modalController.open('assignment-edit', {
+                                assignmentId: Number(item.id),
+                                userId: user.id,
+                                onSaved: () => {
+                                    void onRefresh?.();
+                                },
+                            })
+                        }
+                        className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 transition-colors shrink-0"
+                        aria-label={t('assignmentEditModal.openEdit')}
+                        title={t('assignmentEditModal.openEdit')}
+                    >
+                        <Pencil className="w-4 h-4 text-violet-700" />
                     </button>
                 )}
                 <Link
@@ -663,7 +685,7 @@ export default function WeekMaterialsPanel({
     ];
 
     const dateRange = data.start_date && data.end_date
-        ? `${new Date(data.start_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — ${new Date(data.end_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`
+        ? `${formatSchoolDate(data.start_date, 'ru-RU', { day: 'numeric', month: 'short' })} — ${formatSchoolDate(data.end_date, 'ru-RU', { day: 'numeric', month: 'short' })}`
         : null;
 
     const totalItems = (data.tests?.length ?? 0) + (data.assignments?.length ?? 0) + (data.resources?.length ?? 0);
@@ -731,7 +753,7 @@ export default function WeekMaterialsPanel({
                                         type="button"
                                         onClick={() => handleAddItemForDate(d)}
                                         className="px-1.5 py-0.5 text-[10px] rounded-md border border-gray-200 text-gray-600 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 bg-white transition-colors"
-                                        title={`Добавить на ${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`}
+                                        title={`Добавить на ${formatSchoolDate(d, 'ru-RU', { day: 'numeric', month: 'short' })}`}
                                     >
                                         {weekdayShort[(d.getDay() + 6) % 7]}+
                                     </button>

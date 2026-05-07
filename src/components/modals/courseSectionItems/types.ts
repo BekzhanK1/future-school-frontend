@@ -20,11 +20,17 @@ export interface ResourceFormData {
     week_day?: number | null;
 }
 
+/** Stable React list key — always set when rows are added in the UI */
 export interface AssignmentAttachment {
-    type: 'file' | 'link';
+    clientKey: string;
+    /** Server attachment id when loaded for edit */
+    id?: number;
+    type: 'file';
+    serverType?: 'file';
     title: string;
     file?: File | null;
-    file_url?: string;
+    /** When editing: absolute URL from API (already stored on server). */
+    existingFileUrl?: string | null;
 }
 
 export interface AssignmentFormData {

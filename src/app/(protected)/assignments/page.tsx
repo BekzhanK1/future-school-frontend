@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { AxiosError } from 'axios';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 
 interface Assignment {
     id: number;
@@ -71,8 +72,7 @@ export default function AssignmentsPage() {
     };
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ru-RU', {
+        return formatSchoolDate(dateString, 'ru-RU', {
             day: 'numeric',
             month: 'long',
             year: 'numeric',

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Send, User, Loader2 } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { useUserState } from '@/contexts/UserContext';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 import { use } from 'react';
 
 export default function MessageThreadPage({ params }: { params: Promise<{ id: string }> }) {
@@ -62,8 +63,7 @@ export default function MessageThreadPage({ params }: { params: Promise<{ id: st
     };
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ru-RU', {
+        return formatSchoolDateTime(dateString, 'ru-RU', {
             month: 'short',
             day: 'numeric',
             hour: '2-digit',

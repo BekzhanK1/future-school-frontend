@@ -8,6 +8,7 @@ import { modalController } from '@/lib/modalController';
 import { SharedLinkItem } from './SharedLinkItem';
 import axiosInstance from '@/lib/axios';
 import { useLocale } from '@/contexts/LocaleContext';
+import { getDisplayFileName } from '@/lib/fileDisplayName';
 
 interface SubjectOverviewPanelProps {
     data: SubjectOverviewData;
@@ -38,7 +39,7 @@ export function handleFileView(
         modalController.open('file-viewer', {
             file: {
                 url: fileUrl,
-                title: filename,
+                title: getDisplayFileName(fileUrl, filename || fileData.title),
                 type: fileData.type,
             },
         });

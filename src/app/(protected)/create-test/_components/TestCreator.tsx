@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { QuestionEditor } from './QuestionEditor';
 import axiosInstance from '@/lib/axios';
+import { datetimeLocalValueToUtcIso, utcIsoToDatetimeLocalValue } from '@/lib/datetimeLocal';
+import AppZoneDateTimePicker from '@/components/ui/AppZoneDateTimePicker';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useSearchParams } from 'next/navigation';
 import { courseService } from '@/services/courseService';
@@ -114,14 +117,14 @@ export default function TestCreator() {
                     setTest({
                         title: testData.title || '',
                         description: testData.description || '',
-                        start_date: testData.start_date ? new Date(testData.start_date).toISOString().slice(0, 16) : null,
-                        end_date: testData.end_date ? new Date(testData.end_date).toISOString().slice(0, 16) : null,
+                        start_date: testData.start_date ? utcIsoToDatetimeLocalValue(testData.start_date) : null,
+                        end_date: testData.end_date ? utcIsoToDatetimeLocalValue(testData.end_date) : null,
                         has_time_limit: !!testData.time_limit_minutes,
                         time_limit_minutes: testData.time_limit_minutes || null,
                         has_dates: !!(testData.start_date || testData.end_date),
                         is_published: testData.is_published,
                         show_score_immediately: testData.show_score_immediately || false,
-                        reveal_results_at: testData.reveal_results_at ? new Date(testData.reveal_results_at).toISOString().slice(0, 16) : null,
+                        reveal_results_at: testData.reveal_results_at ? utcIsoToDatetimeLocalValue(testData.reveal_results_at) : null,
                         has_reveal_date: !!testData.reveal_results_at,
                         course_section: testData.course_section || undefined,
                         subject_group: testData.subject_group || undefined,
@@ -237,7 +240,7 @@ export default function TestCreator() {
 
         if (locale === 'en') {
             // English: 12-hour format with AM/PM
-            return date.toLocaleString('en-GB', {
+            return formatSchoolDateTime(date, 'en-GB', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -247,7 +250,7 @@ export default function TestCreator() {
             });
         } else {
             // Russian/Kazakh: 24-hour format
-            return date.toLocaleString('ru-RU', {
+            return formatSchoolDateTime(date, 'ru-RU', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -359,12 +362,12 @@ export default function TestCreator() {
             ...prev,
             has_dates: !prev.has_dates,
             start_date: !prev.has_dates
-                ? new Date().toLocaleString().toString()
+                ? utcIsoToDatetimeLocalValue(new Date().toISOString())
                 : null,
             end_date: !prev.has_dates
-                ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .slice(0, 16)
+                ? utcIsoToDatetimeLocalValue(
+                      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                  )
                 : null,
         }));
     };
@@ -374,9 +377,9 @@ export default function TestCreator() {
             ...prev,
             has_reveal_date: !prev.has_reveal_date,
             reveal_results_at: !prev.has_reveal_date
-                ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-                      .toISOString()
-                      .slice(0, 16)
+                ? utcIsoToDatetimeLocalValue(
+                      new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                  )
                 : null,
         }));
     };
@@ -459,20 +462,16 @@ export default function TestCreator() {
         // Convert dates to ISO format before sending
         if (test.has_dates) {
             if (test.start_date) {
-                // datetime-local input returns format: YYYY-MM-DDTHH:mm
-                // Convert to ISO string (UTC)
-                const startDate = new Date(test.start_date);
-                if (!isNaN(startDate.getTime())) {
-                    testData.start_date = startDate.toISOString();
+                const startIso = datetimeLocalValueToUtcIso(test.start_date);
+                if (startIso) {
+                    testData.start_date = startIso;
                     testData.scheduled_at = testData.start_date;
                 }
             }
             if (test.end_date) {
-                // datetime-local input returns format: YYYY-MM-DDTHH:mm
-                // Convert to ISO string (UTC)
-                const endDate = new Date(test.end_date);
-                if (!isNaN(endDate.getTime())) {
-                    testData.end_date = endDate.toISOString();
+                const endIso = datetimeLocalValueToUtcIso(test.end_date);
+                if (endIso) {
+                    testData.end_date = endIso;
                 }
             }
         } else {
@@ -495,9 +494,9 @@ export default function TestCreator() {
         // Add result visibility settings
         testData.show_score_immediately = test.show_score_immediately;
         if (test.has_reveal_date && test.reveal_results_at) {
-            const revealDate = new Date(test.reveal_results_at);
-            if (!isNaN(revealDate.getTime())) {
-                testData.reveal_results_at = revealDate.toISOString();
+            const revealIso = datetimeLocalValueToUtcIso(test.reveal_results_at);
+            if (revealIso) {
+                testData.reveal_results_at = revealIso;
             }
         } else {
             testData.reveal_results_at = null;
@@ -781,32 +780,28 @@ export default function TestCreator() {
                                             <label className="block text-xs text-gray-600 mb-1">
                                                 {t('test.startDateAndTime')}
                                             </label>
-                                            <input
-                                                type="datetime-local"
+                                            <AppZoneDateTimePicker
                                                 value={test.start_date || ''}
-                                                onChange={e =>
-                                                    handleTestUpdate(
-                                                        'start_date',
-                                                        e.target.value || null
-                                                    )
+                                                onChange={(v) =>
+                                                    handleTestUpdate('start_date', v || null)
                                                 }
+                                                uiLocale={locale}
                                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#694CFD] focus:border-transparent"
+                                                popperClassName="z-[500]"
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-xs text-gray-600 mb-1">
                                                 {t('test.endDateAndTime')}
                                             </label>
-                                            <input
-                                                type="datetime-local"
+                                            <AppZoneDateTimePicker
                                                 value={test.end_date || ''}
-                                                onChange={e =>
-                                                    handleTestUpdate(
-                                                        'end_date',
-                                                        e.target.value || null
-                                                    )
+                                                onChange={(v) =>
+                                                    handleTestUpdate('end_date', v || null)
                                                 }
+                                                uiLocale={locale}
                                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#694CFD] focus:border-transparent"
+                                                popperClassName="z-[500]"
                                             />
                                         </div>
                                     </div>
@@ -882,16 +877,17 @@ export default function TestCreator() {
                                                     <label className="block text-xs text-gray-600 mb-1">
                                                         Дата и время открытия результатов
                                                     </label>
-                                                    <input
-                                                        type="datetime-local"
+                                                    <AppZoneDateTimePicker
                                                         value={test.reveal_results_at || ''}
-                                                        onChange={e =>
+                                                        onChange={(v) =>
                                                             handleTestUpdate(
                                                                 'reveal_results_at',
-                                                                e.target.value || null
+                                                                v || null
                                                             )
                                                         }
+                                                        uiLocale={locale}
                                                         className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#694CFD] focus:border-transparent"
+                                                        popperClassName="z-[500]"
                                                     />
                                                 </div>
                                             )}

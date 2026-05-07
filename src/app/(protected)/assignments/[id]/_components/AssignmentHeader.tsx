@@ -1,76 +1,75 @@
 'use client';
 
-import { Upload } from 'lucide-react';
+import { ArrowDown, ClipboardList } from 'lucide-react';
 import { useLocale } from '@/contexts/LocaleContext';
 import { Assignment } from './types';
 
 interface AssignmentHeaderProps {
     assignment: Assignment;
     userRole?: string;
-    onSubmit: () => void;
-    isSubmitting: boolean;
-    hasSelectedFile: boolean;
 }
 
 export default function AssignmentHeader({
     assignment,
     userRole,
-    onSubmit,
-    isSubmitting,
-    hasSelectedFile,
 }: AssignmentHeaderProps) {
     const { t } = useLocale();
 
-    const getStatusColor = (assignment: Assignment) => {
-        if (assignment.is_submitted === true) {
-            return 'bg-green-100 text-green-800 border-green-200';
-        } else if (assignment.is_deadline_passed === true) {
-            return 'bg-red-100 text-red-800 border-red-200';
-        } else {
-            return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    const getStatusColor = (a: Assignment) => {
+        if (a.is_submitted === true) {
+            return 'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200';
         }
+        if (a.is_deadline_passed === true) {
+            return 'bg-red-50 text-red-800 ring-1 ring-red-200';
+        }
+        return 'bg-amber-50 text-amber-900 ring-1 ring-amber-200';
     };
 
-    const getStatusText = (assignment: Assignment) => {
-        if (assignment.is_submitted === true) {
+    const getStatusText = (a: Assignment) => {
+        if (a.is_submitted === true) {
             return t('assignmentPage.submitted');
-        } else if (assignment.is_deadline_passed === true) {
-            return t('assignmentPage.overdue');
-        } else {
-            return t('assignmentPage.pending');
         }
+        if (a.is_deadline_passed === true) {
+            return t('assignmentPage.overdue');
+        }
+        return t('assignmentPage.pending');
     };
 
     return (
-        <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                    <Upload className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        {assignment.title}
-                    </h1>
-                    {userRole === 'student' && (
-                        <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(assignment)}`}
-                        >
-                            {getStatusText(assignment)}
-                        </span>
-                    )}
+        <header className="border-b border-gray-100 pb-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 gap-4">
+                    <div
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md"
+                        aria-hidden
+                    >
+                        <ClipboardList className="h-6 w-6" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
+                            {assignment.title}
+                        </h1>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                            {userRole === 'student' && (
+                                <span
+                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(assignment)}`}
+                                >
+                                    {getStatusText(assignment)}
+                                </span>
+                            )}
+                            {userRole === 'teacher' && (
+                                <a
+                                    href="#assignment-submissions"
+                                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-medium text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                >
+                                    {t('assignmentPage.goToSubmissions')}
+                                    <ArrowDown className="h-4 w-4" aria-hidden />
+                                </a>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
-            {userRole === 'student' && !assignment.is_submitted && (
-                <button
-                    onClick={onSubmit}
-                    disabled={!hasSelectedFile || isSubmitting}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                    {isSubmitting
-                        ? t('assignmentPage.submitting')
-                        : t('assignmentPage.submit')}
-                </button>
-            )}
-        </div>
+        </header>
     );
 }

@@ -5,6 +5,7 @@ import { modalController } from '@/lib/modalController';
 import type { EventModalData } from '@/lib/modalController';
 import axiosInstance from '@/lib/axios';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatSchoolTime, schoolZoneYmd } from '@/lib/formatSchoolDateTime';
 import { ClipboardList, CheckCircle2, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 
 interface ApiAssignment {
@@ -77,9 +78,9 @@ export default function PendingAssignments({ assignments: propAssignments }: Pen
     );
 
     const handleClick = (a: Assignment) => {
-        const time = new Date(a.dueDate).toLocaleTimeString(locale === 'en' ? 'en-GB' : 'ru-RU', { hour: '2-digit', minute: '2-digit' });
+        const time = formatSchoolTime(a.dueDate, locale === 'en' ? 'en-GB' : 'ru-RU', { hour: '2-digit', minute: '2-digit' });
         const data: EventModalData = {
-            title: a.title, start: a.dueDate, subject: a.subject, teacher: a.teacher,
+            title: a.title, start: schoolZoneYmd(a.dueDate), subject: a.subject, teacher: a.teacher,
             time, description: a.description, url: `/assignments/${a.id}`, type: 'assignment',
         };
         modalController.open('event-modal', data);

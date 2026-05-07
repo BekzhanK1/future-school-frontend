@@ -6,6 +6,7 @@ import { modalController } from '@/lib/modalController';
 import type { EventModalData } from '@/lib/modalController';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useUserState } from '@/contexts/UserContext';
+import { formatSchoolDate, schoolZoneYmd } from '@/lib/formatSchoolDateTime';
 
 interface Event {
     id: string;
@@ -26,13 +27,6 @@ interface Event {
     type?: string;
     url?: string;
     sortKeyMinutes?: number;
-}
-
-function formatLocalYmd(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
 }
 
 function dayEventSortMinutes(ev: Event): number {
@@ -73,7 +67,7 @@ export default function DaySchedule({
     const isTeacher = user?.role === 'teacher';
 
     const dayEvents = useMemo(() => {
-        const dateString = formatLocalYmd(date);
+        const dateString = schoolZoneYmd(date);
         return events
             .filter(ev => {
                 const isHomework = ev.title === 'Домашнее Задание';
@@ -103,21 +97,16 @@ export default function DaySchedule({
 
     const formatDate = (d: Date) => {
         const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
-        return d.toLocaleDateString(localeCode, { day: 'numeric', month: 'long' });
+        return formatSchoolDate(d, localeCode, { day: 'numeric', month: 'long' });
     };
 
     const isToday = useMemo(() => {
-        const today = new Date();
-        return (
-            date.getDate() === today.getDate() &&
-            date.getMonth() === today.getMonth() &&
-            date.getFullYear() === today.getFullYear()
-        );
+        return schoolZoneYmd(date) === schoolZoneYmd(new Date());
     }, [date]);
 
     const dayName = useMemo(() => {
         const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
-        return date.toLocaleDateString(localeCode, { weekday: 'long' });
+        return formatSchoolDate(date, localeCode, { weekday: 'long' });
     }, [date, locale]);
 
     return (

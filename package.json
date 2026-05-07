@@ -22,6 +22,7 @@
     "@types/react-datepicker": "^7.0.0",
     "autoprefixer": "^10.4.21",
     "axios": "^1.11.0",
+    "date-fns-tz": "^3.2.0",
     "lucide-react": "^0.526.0",
     "next": "15.4.10",
     "next-intl": "^4.3.11",

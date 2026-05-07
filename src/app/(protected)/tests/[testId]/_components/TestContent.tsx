@@ -1,5 +1,6 @@
 'use client';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 import { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import Question from '../questions/[questionOrder]/_components/Question';
@@ -370,7 +371,7 @@ export default function TestContent({ testId }: TestContentProps) {
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'Не указано';
-        return new Date(dateString).toLocaleString('ru-RU', {
+        return formatSchoolDateTime(dateString, 'ru-RU', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

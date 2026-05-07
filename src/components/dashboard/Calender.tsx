@@ -11,6 +11,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg } from '@fullcalendar/core';
+import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { modalController } from '@/lib/modalController';
 import CreateEventModal from './CreateEventModal';
@@ -18,6 +19,8 @@ import type { EventModalData } from '@/lib/modalController';
 import axiosInstance from '@/lib/axios';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useUserState } from '@/contexts/UserContext';
+import { appIanaTimeZone } from '@/lib/appTimeZone';
+import { formatSchoolDate, formatSchoolTime, schoolZoneYmd } from '@/lib/formatSchoolDateTime';
 import './calendar.css';
 
 interface Test {
@@ -124,11 +127,8 @@ export interface DayScheduleEventFromCalendar {
     sortKeyMinutes?: number;
 }
 
-function formatLocalYmd(d: Date): string {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+function pad2(n: number): string {
+    return String(n).padStart(2, '0');
 }
 
 function parseScheduleTimeStartMinutes(
@@ -142,16 +142,17 @@ function parseScheduleTimeStartMinutes(
     }
     if (isoFallback) {
         const d = new Date(isoFallback);
-        if (!Number.isNaN(d.getTime())) return d.getHours() * 60 + d.getMinutes();
+        if (!Number.isNaN(d.getTime())) {
+            const [hh, mm] = formatInTimeZone(d, appIanaTimeZone(), 'HH:mm').split(':');
+            return parseInt(hh, 10) * 60 + parseInt(mm, 10);
+        }
     }
     return 24 * 60;
 }
 
-function eventLocalYmdEquals(isoStart: string | undefined | null, dateStr: string): boolean {
+function eventSchoolYmdEquals(isoStart: string | undefined | null, dateStr: string): boolean {
     if (!isoStart) return false;
-    const d = new Date(isoStart);
-    if (Number.isNaN(d.getTime())) return false;
-    return formatLocalYmd(d) === dateStr;
+    return schoolZoneYmd(isoStart) === dateStr;
 }
 
 interface CalendarProps {
@@ -272,140 +273,57 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
         const startDate = currentDateRange.start;
         const endDate = currentDateRange.end;
 
-        if (locale === 'kk') {
-            const monthsLong = [
-                'қаңтар',
-                'ақпан',
-                'наурыз',
-                'сәуір',
-                'мамыр',
-                'маусым',
-                'шілде',
-                'тамыз',
-                'қыркүйек',
-                'қазан',
-                'қараша',
-                'желтоқсан',
-            ];
-            const monthsShort = [
-                'қаңт',
-                'ақп',
-                'нау',
-                'сәу',
-                'мам',
-                'мау',
-                'шіл',
-                'там',
-                'қыр',
-                'қаз',
-                'қар',
-                'жел',
-            ];
-            const weekdays = [
-                'жексенбі',
-                'дүйсенбі',
-                'сейсенбі',
-                'сәрсенбі',
-                'бейсенбі',
-                'жұма',
-                'сенбі',
-            ];
+        const localeMap: Record<string, string> = {
+            en: 'en-GB',
+            ru: 'ru-RU',
+            kk: 'kk-KZ',
+        };
+        const dateLocale = localeMap[locale] || 'en-GB';
+        const kkSuffix = locale === 'kk' ? ' ж.' : '';
 
-            if (view === 'timeGridDay') {
-                const w = weekdays[startDate.getDay()];
-                const m = monthsLong[startDate.getMonth()];
-                return `${w}, ${startDate.getDate()} ${m} ${startDate.getFullYear()} ж.`;
-            } else if (view === 'timeGridWeek') {
-                const startDay = startDate.getDate();
-                const endDay = endDate.getDate();
-                const startMonthIdx = startDate.getMonth();
-                const endMonthIdx = endDate.getMonth();
-                const year = startDate.getFullYear();
-
-                if (
-                    startMonthIdx === endMonthIdx &&
-                    startDate.getFullYear() === endDate.getFullYear()
-                ) {
-                    const m = monthsLong[startMonthIdx];
-                    return `${startDay} - ${endDay} ${m} ${year} ж.`;
-                }
-                if (startDate.getFullYear() === endDate.getFullYear()) {
-                    const sm = monthsShort[startMonthIdx];
-                    const em = monthsShort[endMonthIdx];
-                    return `${startDay} ${sm} - ${endDay} ${em} ${year} ж.`;
-                }
-                const sm = monthsShort[startMonthIdx];
-                const em = monthsShort[endMonthIdx];
-                const startYear = startDate.getFullYear();
-                const endYear = endDate.getFullYear();
-                return `${startDay} ${sm} ${startYear} ж. - ${endDay} ${em} ${endYear} ж.`;
-            }
-        } else {
-            // Get locale string based on current locale
-            const localeMap: Record<string, string> = {
-                en: 'en-GB',
-                ru: 'ru-RU',
-                kk: 'kk-KZ',
-            };
-            const dateLocale = localeMap[locale] || 'en-GB';
-
-            if (view === 'timeGridDay') {
-                // For daily view, show full date with weekday
-                return startDate.toLocaleDateString(dateLocale, {
+        if (view === 'timeGridDay') {
+            return (
+                formatSchoolDate(startDate, dateLocale, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'short',
                     day: 'numeric',
-                });
-            } else if (view === 'timeGridWeek') {
-                // For weekly view, show date range in a readable format
-                const startDay = startDate.getDate();
-                const endDay = endDate.getDate();
-                const startMonth = startDate.toLocaleDateString(dateLocale, {
-                    month: 'long',
-                });
-                const endMonth = endDate.toLocaleDateString(dateLocale, {
-                    month: 'long',
-                });
-                const year = startDate.getFullYear();
+                }) + kkSuffix
+            );
+        }
 
-                // If same month and year
-                if (
-                    startDate.getMonth() === endDate.getMonth() &&
-                    startDate.getFullYear() === endDate.getFullYear()
-                ) {
-                    return `${startDay} - ${endDay} ${startMonth} ${year}`;
-                }
-                // If same year but different months
-                if (startDate.getFullYear() === endDate.getFullYear()) {
-                    const startMonthShort = startDate.toLocaleDateString(
-                        dateLocale,
-                        {
-                            month: 'short',
-                        }
-                    );
-                    const endMonthShort = endDate.toLocaleDateString(
-                        dateLocale,
-                        {
-                            month: 'short',
-                        }
-                    );
-                    return `${startDay} ${startMonthShort} - ${endDay} ${endMonthShort} ${year}`;
-                }
-                // Different years
-                const startMonthShort = startDate.toLocaleDateString(
-                    dateLocale,
-                    {
-                        month: 'short',
-                    }
-                );
-                const endMonthShort = endDate.toLocaleDateString(dateLocale, {
-                    month: 'short',
-                });
-                const startYear = startDate.getFullYear();
-                const endYear = endDate.getFullYear();
-                return `${startDay} ${startMonthShort} ${startYear} - ${endDay} ${endMonthShort} ${endYear}`;
+        if (view === 'timeGridWeek') {
+            const sameMonthYear =
+                schoolZoneYmd(startDate).slice(0, 7) === schoolZoneYmd(endDate).slice(0, 7);
+            if (sameMonthYear) {
+                const monthLong = formatSchoolDate(startDate, dateLocale, { month: 'long' });
+                const y = formatSchoolDate(startDate, dateLocale, { year: 'numeric' });
+                const sd = formatSchoolDate(startDate, dateLocale, { day: 'numeric' });
+                const ed = formatSchoolDate(endDate, dateLocale, { day: 'numeric' });
+                return `${sd} - ${ed} ${monthLong} ${y}${kkSuffix}`;
             }
+            const sameYear =
+                schoolZoneYmd(startDate).slice(0, 4) === schoolZoneYmd(endDate).slice(0, 4);
+            if (sameYear) {
+                const sm = formatSchoolDate(startDate, dateLocale, { day: 'numeric', month: 'short' });
+                const em = formatSchoolDate(endDate, dateLocale, { day: 'numeric', month: 'short' });
+                const y = formatSchoolDate(startDate, dateLocale, { year: 'numeric' });
+                return `${sm} - ${em} ${y}${kkSuffix}`;
+            }
+            return (
+                formatSchoolDate(startDate, dateLocale, {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                }) +
+                ' – ' +
+                formatSchoolDate(endDate, dateLocale, {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                }) +
+                kkSuffix
+            );
         }
         return '';
     }, [currentDateRange, view, locale]);
@@ -640,14 +558,20 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     }
                 }
                 
-                // Create event for this date
+                // Create event for this date (wall time = school zone)
+                const tz = appIanaTimeZone();
+                const dayYmd = formatInTimeZone(currentDate, tz, 'yyyy-MM-dd');
                 const [hours, minutes] = slot.start_time.split(':').map(Number);
-                const startDateTime = new Date(currentDate);
-                startDateTime.setHours(hours, minutes, 0, 0);
-                
+                const startIso = fromZonedTime(
+                    `${dayYmd} ${pad2(hours)}:${pad2(minutes)}:00`,
+                    tz
+                ).toISOString();
+
                 const [endHours, endMinutes] = slot.end_time.split(':').map(Number);
-                const endDateTime = new Date(currentDate);
-                endDateTime.setHours(endHours, endMinutes, 0, 0);
+                const endIso = fromZonedTime(
+                    `${dayYmd} ${pad2(endHours)}:${pad2(endMinutes)}:00`,
+                    tz
+                ).toISOString();
                 
                 const subjectName = slot.subject_group_course_name || 'Предмет';
                 const classroomName = slot.subject_group_classroom_display || '';
@@ -686,12 +610,12 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     text: '#111827',
                 } : getSubjectColors(subjectName);
 
-                const localYmd = formatLocalYmd(currentDate);
+                const localYmd = dayYmd;
                 events.push({
                     id: `schedule-${slot.id}-${localYmd}`,
                     title: title,
-                    start: startDateTime.toISOString(),
-                    end: endDateTime.toISOString(),
+                    start: startIso,
+                    end: endIso,
                     backgroundColor: subjectColors.bg,
                     borderColor: subjectColors.border,
                     textColor: subjectColors.text,
@@ -755,10 +679,8 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     const otherEnd = new Date(otherEvent.end);
                     
                     // Check if events are on the same day
-                    const sameDay = 
-                        currentStart.getDate() === otherStart.getDate() &&
-                        currentStart.getMonth() === otherStart.getMonth() &&
-                        currentStart.getFullYear() === otherStart.getFullYear();
+                    const sameDay =
+                        schoolZoneYmd(currentStart) === schoolZoneYmd(otherStart);
                     
                     if (!sameDay) continue;
 
@@ -860,7 +782,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
 
         tests.forEach(test => {
             const testDate = new Date(test.start_date);
-            const testTime = testDate.toLocaleTimeString('ru-RU', {
+            const testTime = formatSchoolTime(testDate, 'ru-RU', {
                 hour: '2-digit',
                 minute: '2-digit',
             });
@@ -868,10 +790,8 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                 ? new Date(test.end_date)
                 : new Date(testDate.getTime() + 60 * 60 * 1000); // Default 1 hour duration
 
-            const isSameDay = 
-                testDate.getDate() === endDate.getDate() &&
-                testDate.getMonth() === endDate.getMonth() &&
-                testDate.getFullYear() === endDate.getFullYear();
+            const isSameDay =
+                schoolZoneYmd(testDate) === schoolZoneYmd(endDate);
 
             if (isSameDay) {
                 events.push({
@@ -911,7 +831,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     },
                 });
                 
-                const endTime = endDate.toLocaleTimeString('ru-RU', {
+                const endTime = formatSchoolTime(endDate, 'ru-RU', {
                     hour: '2-digit',
                     minute: '2-digit',
                 });
@@ -937,7 +857,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
 
         assignments.forEach(assignment => {
             const assignmentDate = new Date(assignment.due_at);
-            const assignmentTime = assignmentDate.toLocaleTimeString('ru-RU', {
+            const assignmentTime = formatSchoolTime(assignmentDate, 'ru-RU', {
                 hour: '2-digit',
                 minute: '2-digit',
             });
@@ -965,7 +885,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
         customEvents.forEach(ev => {
             const startDate = new Date(ev.start_at);
             const endDate = ev.end_at ? new Date(ev.end_at) : new Date(startDate.getTime() + 60 * 60 * 1000);
-            const timeStr = startDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            const timeStr = formatSchoolTime(startDate, 'ru-RU', { hour: '2-digit', minute: '2-digit' });
             const categoryLabels: Record<string, string> = {
                 meeting: 'Собрание',
                 gathering: 'Встреча',
@@ -1003,23 +923,23 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
     const getEventsForDay = useCallback(
         (date: Date | string): DayScheduleEventFromCalendar[] => {
             const dateStr =
-                typeof date === 'string' ? date : formatLocalYmd(date);
+                typeof date === 'string' ? date : schoolZoneYmd(date);
             const dayEvents: DayScheduleEventFromCalendar[] = [];
             for (const ev of calendarEvents) {
                 const start = ev.start;
-                if (!start || !eventLocalYmdEquals(String(start), dateStr)) continue;
+                if (!start || !eventSchoolYmdEquals(String(start), dateStr)) continue;
                 const props = (ev as any).extendedProps || {};
                 const isGrouped = props?.isGrouped && props?.groupedEvents?.length;
                 if (isGrouped) {
                     for (const sub of props.groupedEvents) {
                         const subStart = sub.start;
-                        if (!subStart || !eventLocalYmdEquals(String(subStart), dateStr))
+                        if (!subStart || !eventSchoolYmdEquals(String(subStart), dateStr))
                             continue;
                         const subProps = sub.extendedProps || {};
                         let timeStr = subProps.time || '';
                         if (!timeStr && sub.start) {
                             const s = new Date(sub.start);
-                            timeStr = s.toLocaleTimeString('ru-RU', {
+                            timeStr = formatSchoolTime(s, 'ru-RU', {
                                 hour: '2-digit',
                                 minute: '2-digit',
                             });
@@ -1068,7 +988,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     let timeStr = props.time || '';
                     if (!timeStr && ev.start) {
                         const s = new Date(ev.start);
-                        timeStr = s.toLocaleTimeString('ru-RU', {
+                        timeStr = formatSchoolTime(s, 'ru-RU', {
                             hour: '2-digit',
                             minute: '2-digit',
                         });
@@ -1167,6 +1087,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
             eventOrder: 'time,title',
             eventDisplay: 'auto',
             allDaySlot: false,
+            timeZone: appIanaTimeZone(),
             eventContent: function(arg: any) {
                 const event = arg.event;
                 const props = event.extendedProps;
@@ -1276,22 +1197,22 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
             },
             dayHeaderContent: (arg: any) => {
                 const date = arg.date;
-                const day = date.getDay();
-                const key =
-                    day === 1 ? 'mon'
-                    : day === 2 ? 'tue'
-                    : day === 3 ? 'wed'
-                    : day === 4 ? 'thu'
-                    : day === 5 ? 'fri'
-                    : day === 6 ? 'sat'
-                    : 'sun';
-                const today = new Date();
-                const isToday =
-                    date.getDate() === today.getDate() &&
-                    date.getMonth() === today.getMonth() &&
-                    date.getFullYear() === today.getFullYear();
+                const tz = appIanaTimeZone();
+                const wname = formatInTimeZone(date, tz, 'EEEE');
+                const keyMap: Record<string, string> = {
+                    Monday: 'mon',
+                    Tuesday: 'tue',
+                    Wednesday: 'wed',
+                    Thursday: 'thu',
+                    Friday: 'fri',
+                    Saturday: 'sat',
+                    Sunday: 'sun',
+                };
+                const key = keyMap[wname] ?? 'mon';
+                const todayYmd = schoolZoneYmd(new Date());
+                const isToday = schoolZoneYmd(date) === todayYmd;
                 const dayName = t(`calendar.daysShort.${key}`);
-                const dateNum = date.getDate();
+                const dateNum = Number(schoolZoneYmd(date).split('-')[2]);
                 return {
                     html: `<div class="fc-day-header-inner">
                         <span class="fc-day-header-name">${dayName}</span>
@@ -1333,7 +1254,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                                 const startTime = new Date(event.start);
                                 const endTime = event.end ? new Date(event.end) : new Date(startTime.getTime() + 60 * 60 * 1000);
                                 const localeCode = locale === 'en' ? 'en-GB' : 'ru-RU';
-                                timeStr = `${startTime.toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString(localeCode, { hour: '2-digit', minute: '2-digit' })}`;
+                                timeStr = `${formatSchoolTime(startTime, localeCode, { hour: '2-digit', minute: '2-digit' })} - ${formatSchoolTime(endTime, localeCode, { hour: '2-digit', minute: '2-digit' })}`;
                             } else if (timeStr) {
                                 timeStr = timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
                             }
@@ -1346,7 +1267,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                                 teacher: ep.teacherFullName || ep.teacher || '',
                                 time: timeStr,
                                 type: eventType,
-                                start: event.start,
+                                start: event.start ? schoolZoneYmd(String(event.start)) : '',
                                 end: event.end,
                                 description: ep.description || '',
                                 target_audience: ep.target_audience,
@@ -1356,7 +1277,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         });
                         
                         modalController.open('events-list-modal', {
-                            date: eventInfo.event.start.toISOString().split('T')[0],
+                            date: schoolZoneYmd(eventInfo.event.start as Date),
                             events: eventsForModal,
                         });
                         return;
@@ -1385,10 +1306,10 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         const endTime = eventInfo.event.end 
                             ? new Date(eventInfo.event.end)
                             : new Date(startTime.getTime() + 60 * 60 * 1000);
-                        timeStr = `${startTime.toLocaleTimeString('ru-RU', {
+                        timeStr = `${formatSchoolTime(startTime, 'ru-RU', {
                             hour: '2-digit',
                             minute: '2-digit',
-                        })} - ${endTime.toLocaleTimeString('ru-RU', {
+                        })} - ${formatSchoolTime(endTime, 'ru-RU', {
                             hour: '2-digit',
                             minute: '2-digit',
                         })}`;
@@ -1403,14 +1324,15 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         ? (props?.teacherFullName || props?.teacher || '')
                         : (props?.teacher || '');
 
+                    const startRaw = eventInfo.event.start;
                     const eventData: EventModalData = {
                         title: eventInfo.event.title,
-                        start: eventInfo.event.start
-                            ? (typeof eventInfo.event.start === 'string'
-                                ? eventInfo.event.start
-                                : eventInfo.event.start.toISOString()
-                              ).split('T')[0]
-                            : '',
+                        start:
+                            startRaw != null
+                                ? schoolZoneYmd(
+                                      typeof startRaw === 'string' ? startRaw : startRaw
+                                  )
+                                : '',
                         subject: props?.subject || '',
                         teacher: teacherForModal,
                         time: timeStr,
@@ -1433,7 +1355,8 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     onDateChange(clickedDate, getEventsForDay(info.dateStr));
                 }
                 // Find all events at this date/time
-                const clickedTime = clickedDate.getHours() * 60 + clickedDate.getMinutes(); // minutes from midnight
+                const [cH, cM] = formatInTimeZone(clickedDate, appIanaTimeZone(), 'HH:mm').split(':');
+                const clickedTime = parseInt(cH, 10) * 60 + parseInt(cM, 10);
                 
                 // Find events that overlap with this time
                 const overlappingEvents = calendarEvents.filter(event => {
@@ -1443,14 +1366,13 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     const eventEnd = event.end ? new Date(event.end) : new Date(eventStart.getTime() + 60 * 60 * 1000);
                     
                     // Check if clicked time is within event time range
-                    const eventStartTime = eventStart.getHours() * 60 + eventStart.getMinutes();
-                    const eventEndTime = eventEnd.getHours() * 60 + eventEnd.getMinutes();
+                    const [esH, esM] = formatInTimeZone(eventStart, appIanaTimeZone(), 'HH:mm').split(':');
+                    const [eeH, eeM] = formatInTimeZone(eventEnd, appIanaTimeZone(), 'HH:mm').split(':');
+                    const eventStartTime = parseInt(esH, 10) * 60 + parseInt(esM, 10);
+                    const eventEndTime = parseInt(eeH, 10) * 60 + parseInt(eeM, 10);
                     
                     // Check if same day
-                    const sameDay = 
-                        eventStart.getDate() === clickedDate.getDate() &&
-                        eventStart.getMonth() === clickedDate.getMonth() &&
-                        eventStart.getFullYear() === clickedDate.getFullYear();
+                    const sameDay = schoolZoneYmd(eventStart) === schoolZoneYmd(clickedDate);
                     
                     if (!sameDay) return false;
                     
@@ -1471,13 +1393,13 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         if (!timeStr && event.start) {
                             const startTime = new Date(event.start);
                             const endTime = event.end ? new Date(event.end) : new Date(startTime.getTime() + 60 * 60 * 1000);
-                            timeStr = `${startTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+                            timeStr = `${formatSchoolTime(startTime, 'ru-RU', { hour: '2-digit', minute: '2-digit' })} - ${formatSchoolTime(endTime, 'ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
                         } else if (timeStr) timeStr = timeStr.replace(/(\d{2}:\d{2}):\d{2}/g, '$1');
                         const teacherForModal = eventType === 'schedule' ? (props.teacherFullName || props.teacher || '') : (props.teacher || '');
                         return {
                             id: event.id,
                             title: event.title || '',
-                            start: typeof event.start === 'string' ? event.start.split('T')[0] : (event.start as Date).toISOString().split('T')[0],
+                            start: schoolZoneYmd(String(event.start)),
                             subject: props.subject || '',
                             teacher: teacherForModal,
                             time: timeStr,
@@ -1493,7 +1415,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     });
                     modalController.open('events-list-modal', {
                         events: eventsData,
-                        date: clickedDate.toISOString().split('T')[0],
+                        date: schoolZoneYmd(clickedDate),
                     });
                 } else if (overlappingEvents.length === 1) {
                     // Single event - show normal event modal
@@ -1515,10 +1437,10 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                         const endTime = event.end 
                             ? new Date(event.end)
                             : new Date(startTime.getTime() + 60 * 60 * 1000);
-                        timeStr = `${startTime.toLocaleTimeString('ru-RU', {
+                        timeStr = `${formatSchoolTime(startTime, 'ru-RU', {
                             hour: '2-digit',
                             minute: '2-digit',
-                        })} - ${endTime.toLocaleTimeString('ru-RU', {
+                        })} - ${formatSchoolTime(endTime, 'ru-RU', {
                             hour: '2-digit',
                             minute: '2-digit',
                         })}`;
@@ -1535,7 +1457,7 @@ const Calendar = ({ selectedDate = new Date(), onDateChange, rightSlot }: Calend
                     
                     const eventData: EventModalData = {
                         title: event.title || '',
-                        start: event.start || '',
+                        start: event.start ? schoolZoneYmd(String(event.start)) : '',
                         subject: props.subject || '',
                         teacher: teacherForModal,
                         time: timeStr,

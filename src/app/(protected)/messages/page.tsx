@@ -7,6 +7,7 @@ import axiosInstance from '@/lib/axios';
 import { useUserState } from '@/contexts/UserContext';
 import CreateQuestionModal from '@/components/modals/CreateQuestionModal';
 import CreateAnnouncementToParentsModal from '@/components/modals/CreateAnnouncementToParentsModal';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 
 interface User {
     id: number;
@@ -79,8 +80,7 @@ export default function MessagesPage() {
     }, [fetchThreads]);
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('ru-RU', {
+        return formatSchoolDateTime(dateString, 'ru-RU', {
             month: 'short',
             day: 'numeric',
             hour: '2-digit',

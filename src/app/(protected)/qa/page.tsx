@@ -8,6 +8,7 @@ import { useUserState } from '@/contexts/UserContext';
 import { useLocale } from '@/contexts/LocaleContext';
 import CreateQuestionModal from '@/components/modals/CreateQuestionModal';
 import CreateAnnouncementModal from '@/components/modals/CreateAnnouncementModal';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 
 interface ForumPost {
     id: number;
@@ -128,8 +129,7 @@ export default function QAListPage() {
 
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB', {
+        return formatSchoolDateTime(dateString, 'en-GB', {
             year: 'numeric',
             month: 'short',
             day: 'numeric',

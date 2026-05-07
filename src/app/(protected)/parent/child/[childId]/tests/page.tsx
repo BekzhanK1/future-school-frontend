@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Award, CheckCircle, Clock, Eye, Filter } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 
 interface Test {
     id: number;
@@ -78,7 +79,7 @@ export default function ParentChildTestsPage() {
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'Не указано';
-        return new Date(dateString).toLocaleDateString('ru-RU', {
+        return formatSchoolDateTime(dateString, 'ru-RU', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

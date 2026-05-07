@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import axiosInstance from "@/lib/axios";
+import { formatSchoolDateTime } from "@/lib/formatSchoolDateTime";
 import { useUserState } from "@/contexts/UserContext";
 
 type AttendanceStatus = "present" | "excused" | "absent";
@@ -146,7 +147,13 @@ export default function ParentChildAttendancePage() {
                 {records.map((r) => (
                   <tr key={r.id} className="border-b last:border-0">
                     <td className="py-2 pr-4 text-gray-900">
-                      {new Date(r.attendance.taken_at).toLocaleString()}
+                      {formatSchoolDateTime(r.attendance.taken_at, "ru-RU", {
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </td>
                     <td className="py-2 px-4 text-gray-900">
                       {r.attendance.course_name}

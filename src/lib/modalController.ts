@@ -10,7 +10,8 @@ export type ModalType =
     | 'confirmation'
     | 'file-upload'
     | 'add-student'
-    | 'add-file-to-directory';
+    | 'add-file-to-directory'
+    | 'assignment-edit';
 
 export interface EventModalData {
     title: string;
@@ -121,6 +122,12 @@ export interface AddFileToDirectoryModalData {
     directoryTitle: string;
     courseSectionId: number;
     onSuccess?: () => void;
+}
+
+export interface AssignmentEditModalData {
+    assignmentId: number;
+    userId: number;
+    onSaved?: () => void;
 }
 
 export interface ModalState {

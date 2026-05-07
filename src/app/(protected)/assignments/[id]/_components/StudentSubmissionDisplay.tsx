@@ -1,8 +1,11 @@
 'use client';
 
-import { FileText } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 import { StudentSubmission } from './types';
+import { isProbablyImageUrl } from '@/lib/attachmentPreview';
+import { isAssignmentFileAttachment } from '@/lib/assignmentAttachmentFilters';
 
 interface StudentSubmissionDisplayProps {
     submission: StudentSubmission;
@@ -26,8 +29,7 @@ export default function StudentSubmissionDisplay({
         const date = new Date(dateString);
 
         if (locale === 'en') {
-            // English: 12-hour format with AM/PM
-            return date.toLocaleString('en-GB', {
+            return formatSchoolDateTime(date, 'en-GB', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -35,160 +37,186 @@ export default function StudentSubmissionDisplay({
                 minute: '2-digit',
                 hour12: true,
             });
-        } else {
-            // Russian/Kazakh: 24-hour format
-            return date.toLocaleString('ru-RU', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-            });
+        }
+
+        return formatSchoolDateTime(date, 'ru-RU', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        });
+    };
+
+    const fileAttachments =
+        submission.attachments?.filter(
+            a => isAssignmentFileAttachment(a.type) && !!a.file?.trim()
+        ) ?? [];
+
+    const mainFile = submission.file?.trim();
+
+    const filenameFromUrl = (url: string) => {
+        try {
+            const seg = url.split('/').pop() ?? url;
+            return decodeURIComponent(seg);
+        } catch {
+            return url;
         }
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {t('assignmentPage.submittedWork')}
-            </h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <div>
-                            <p
-                                onClick={() => {
-                                    onFileView(
-                                        {
-                                            file: submission.file,
-                                            title: submission.file,
-                                            type: 'file',
-                                        },
-                                        submission.file
-                                    );
-                                }}
-                                className="font-medium text-blue-900 cursor-pointer"
-                            >
-                                {submission.file.length > 60
-                                    ? submission.file.slice(0, 60) + '...'
-                                    : submission.file}
-                            </p>
-                            <p className="text-sm text-blue-700">
-                                {t('assignmentPage.submittedOn')}:{' '}
-                                {formatDate(submission.submitted_at)}
-                            </p>
-                        </div>
-                    </div>
-                    {submission.file && (
-                        <button
-                            onClick={() => {
-                                const filename =
-                                    submission.file.length > 60
-                                        ? submission.file.slice(0, 60) + '...'
-                                        : submission.file || 'submission';
-                                onDownload(submission.file, filename);
-                            }}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                        >
-                            {t('assignmentPage.download')}
-                        </button>
-                    )}
-                </div>
+        <section
+            aria-labelledby="submitted-work-heading"
+            className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ring-1 ring-black/[0.03]"
+        >
+            <div className="border-b border-gray-100 px-5 py-4">
+                <h2
+                    id="submitted-work-heading"
+                    className="text-lg font-semibold text-gray-900"
+                >
+                    {t('assignmentPage.submittedWork')}
+                </h2>
+                <p className="mt-0.5 text-sm text-gray-500">
+                    {t('assignmentPage.submittedOn')}:{' '}
+                    {formatDate(submission.submitted_at)}
+                </p>
+            </div>
 
-                {/* Render image if the submitted file is an image */}
-                {submission.file &&
-                    submission.file.match(
-                        /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i
-                    ) && (
-                        <div className="mt-4">
-                            <img
-                                src={submission.file}
-                                alt="Submitted work"
-                                className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
-                                style={{ maxHeight: '400px' }}
-                                onError={e => {
-                                    e.currentTarget.style.display = 'none';
-                                }}
-                            />
-                        </div>
-                    )}
-
-                {submission.text && (
-                    <div className="mt-3 p-3 bg-white rounded border">
-                        <p className="text-sm text-gray-700">
-                            <strong>{t('assignmentPage.textPart')}:</strong>
-                        </p>
-                        <p className="mt-1 text-gray-900">{submission.text}</p>
-                    </div>
-                )}
-
-                {/* Student Submission Attachments */}
-                {submission.attachments &&
-                    submission.attachments.length > 0 && (
-                        <div className="mt-3">
-                            <p className="text-sm font-medium text-gray-700 mb-2">
-                                {t('assignmentPage.submissionAttachments')}:
-                            </p>
-                            <div className="space-y-2">
-                                {submission.attachments.map(attachment => (
-                                    <div
-                                        key={attachment.id}
-                                        className="flex items-center gap-2 p-2 bg-white rounded border border-gray-200"
+            <div className="space-y-4 p-5 sm:p-6">
+                {mainFile ? (
+                    <div className="rounded-xl border border-gray-100 bg-slate-50/80 p-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex min-w-0 gap-3">
+                                <FileText className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+                                <div className="min-w-0">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                                        {t('assignmentPage.mainFile')}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            onFileView(
+                                                {
+                                                    file: mainFile,
+                                                    title: filenameFromUrl(
+                                                        mainFile
+                                                    ),
+                                                    type: 'file',
+                                                },
+                                                mainFile
+                                            )
+                                        }
+                                        className="mt-1 rounded text-left text-sm font-semibold text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                     >
-                                        <FileText className="w-4 h-4 text-blue-500" />
-                                        <span className="text-sm text-gray-700 flex-1 truncate">
-                                            {attachment.title}
+                                        <span className="break-all">
+                                            {filenameFromUrl(mainFile)}
                                         </span>
-                                        {attachment.type === 'file' &&
-                                        attachment.file ? (
-                                            <button
-                                                onClick={() =>
-                                                    onFileView(
-                                                        {
-                                                            file: attachment.file,
-                                                            title: attachment.title,
-                                                            type: 'file',
-                                                        },
-                                                        attachment.file
-                                                    )
-                                                }
-                                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                                            >
-                                                {t('assignmentPage.open')}
-                                            </button>
-                                        ) : attachment.type === 'link' &&
-                                          attachment.file_url ? (
-                                            <a
-                                                href={attachment.file_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                                            >
-                                                {t('assignmentPage.open')}
-                                            </a>
-                                        ) : null}
-                                    </div>
-                                ))}
+                                    </button>
+                                </div>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    onDownload(
+                                        mainFile,
+                                        filenameFromUrl(mainFile)
+                                    )
+                                }
+                                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            >
+                                <Download className="h-4 w-4" aria-hidden />
+                                {t('assignmentPage.download')}
+                            </button>
                         </div>
-                    )}
 
-                {submission.grade_value !== null && (
-                    <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
-                        <p className="text-sm font-medium text-yellow-800">
-                            {t('assignmentPage.grade')}:{' '}
-                            {submission.grade_value} / {maxGrade}
-                        </p>
-                        {submission.grade_feedback && (
-                            <p className="mt-1 text-sm text-yellow-700">
-                                {submission.grade_feedback}
-                            </p>
+                        {isProbablyImageUrl(mainFile) && (
+                            <div className="mt-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={mainFile}
+                                    alt=""
+                                    className="max-h-48 max-w-full rounded-lg border border-gray-200 object-contain"
+                                    onError={e => {
+                                        e.currentTarget.style.display = 'none';
+                                    }}
+                                />
+                            </div>
                         )}
                     </div>
+                ) : (
+                    <p className="text-sm text-gray-600">
+                        {t('assignmentPage.noMainFile')}
+                    </p>
                 )}
+
+                {fileAttachments.length > 0 ? (
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-900">
+                            {t('assignmentPage.submissionAttachments')}
+                        </h3>
+                        <ul className="mt-2 space-y-2">
+                            {fileAttachments.map(attachment => {
+                                const url = attachment.file.trim();
+                                return (
+                                    <li
+                                        key={attachment.id}
+                                        className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-100 bg-white p-3"
+                                    >
+                                        {isProbablyImageUrl(url) ? (
+                                            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={url}
+                                                    alt=""
+                                                    className="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                                        )}
+                                        <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+                                            {attachment.title}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onFileView(
+                                                    {
+                                                        file: url,
+                                                        title: attachment.title,
+                                                        type: 'file',
+                                                    },
+                                                    url
+                                                )
+                                            }
+                                            className="shrink-0 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                        >
+                                            {t('assignmentPage.open')}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                ) : null}
+
+                {submission.grade_value !== null &&
+                    submission.grade_value !== undefined && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                            <p className="text-sm font-semibold text-amber-900">
+                                {t('assignmentPage.grade')}:{' '}
+                                {submission.grade_value} / {maxGrade}
+                            </p>
+                            {submission.grade_feedback ? (
+                                <p className="mt-2 text-sm text-amber-900/90">
+                                    {submission.grade_feedback}
+                                </p>
+                            ) : null}
+                        </div>
+                    )}
             </div>
-        </div>
+        </section>
     );
 }

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { useLocale } from '@/contexts/LocaleContext';
+import { getDisplayFileName } from '@/lib/fileDisplayName';
 
 interface FileViewerModalProps {
     isOpen: boolean;
@@ -30,6 +31,8 @@ export default function FileViewerModal({
     const [isDownloading, setIsDownloading] = useState(false);
     const [previewFailed, setPreviewFailed] = useState(false);
 
+    const displayTitle = getDisplayFileName(file.url, file.title);
+
     useEffect(() => {
         setPreviewFailed(false);
     }, [file?.url]);
@@ -45,14 +48,14 @@ export default function FileViewerModal({
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = file.title;
+            link.download = displayTitle;
             link.click();
             window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Download failed:', error);
             const link = document.createElement('a');
             link.href = file.url;
-            link.download = file.title;
+            link.download = displayTitle;
             link.click();
         } finally {
             setIsDownloading(false);
@@ -101,7 +104,7 @@ export default function FileViewerModal({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={file?.title || t('modals.fileViewer.documentViewer')}
+            title={displayTitle || t('modals.fileViewer.documentViewer')}
             maxWidth="max-w-7xl"
         >
             <div className="space-y-4">
@@ -114,9 +117,6 @@ export default function FileViewerModal({
                             <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-violet-600 flex-shrink-0" />
                         )}
                         <div className="min-w-0 flex-1">
-                            <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">
-                                {file?.title}
-                            </h3>
                             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
                                 {t('modals.fileViewer.fileType', {
                                     type: fileType.toUpperCase(),
@@ -169,7 +169,7 @@ export default function FileViewerModal({
                             <div className="flex items-center justify-center h-full w-full p-4">
                                 <img
                                     src={file.url}
-                                    alt={file.title}
+                                    alt={displayTitle}
                                     className="w-full h-full object-contain"
                                     onError={e => {
                                         console.error('Image failed to load:', e);
@@ -181,7 +181,7 @@ export default function FileViewerModal({
                             <iframe
                                 src={file.url}
                                 className="w-full h-full border-0"
-                                title={file.title}
+                                title={displayTitle}
                                 style={{ minHeight: '500px' }}
                                 onError={() => setPreviewFailed(true)}
                             />
@@ -197,7 +197,7 @@ export default function FileViewerModal({
                                         width: 'auto',
                                         height: 'auto',
                                     }}
-                                    title={file.title}
+                                    title={displayTitle}
                                     onError={() => setPreviewFailed(true)}
                                 />
                             </div>

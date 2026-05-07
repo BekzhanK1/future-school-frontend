@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, FileText, Calendar, CheckCircle, Clock, Filter } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 
 interface Assignment {
     id: number;
@@ -87,7 +88,7 @@ export default function ParentChildAssignmentsPage() {
     }, [childId, subjectGroupId]);
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('ru-RU', {
+        return formatSchoolDateTime(dateString, 'ru-RU', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

@@ -6,6 +6,7 @@ import axiosInstance from '@/lib/axios';
 import { useSubject } from '../../layout';
 import AttendanceModal from '@/components/modals/AttendanceModal';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatSchoolDate, formatSchoolTime } from '@/lib/formatSchoolDateTime';
 
 interface AttendanceRecord {
     id: number;
@@ -199,7 +200,7 @@ export default function AttendancePage() {
                                     return (
                                         <tr key={session.id} className="hover:bg-gray-50/60 transition-colors">
                                             <td className="px-4 py-2.5 font-medium text-gray-900">
-                                                {new Date(session.taken_at).toLocaleDateString(localeStr, { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                {formatSchoolDate(session.taken_at, localeStr, { day: '2-digit', month: 'short', year: 'numeric' })}
                                             </td>
                                             <td className="px-3 py-2.5 text-center font-semibold text-emerald-700">{present}</td>
                                             <td className="px-3 py-2.5 text-center font-semibold text-amber-700">{excused}</td>
@@ -296,7 +297,7 @@ export default function AttendancePage() {
                         <p className="text-sm text-gray-600 mb-1">
                             {t('attendancePage.confirmText', {
                                 time: todayAttendance
-                                    ? new Date(todayAttendance.taken_at).toLocaleTimeString(localeStr, { hour: '2-digit', minute: '2-digit' })
+                                    ? formatSchoolTime(todayAttendance.taken_at, localeStr, { hour: '2-digit', minute: '2-digit' })
                                     : '',
                             })}
                         </p>
@@ -324,10 +325,10 @@ export default function AttendancePage() {
                         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                             <div>
                                 <h2 className="text-base font-bold text-gray-900">
-                                    {new Date(selectedSession.taken_at).toLocaleDateString(localeStr, { weekday: 'long', day: 'numeric', month: 'long' })}
+                                    {formatSchoolDate(selectedSession.taken_at, localeStr, { weekday: 'long', day: 'numeric', month: 'long' })}
                                 </h2>
                                 <p className="text-xs text-gray-400 mt-0.5">
-                                    {new Date(selectedSession.taken_at).toLocaleTimeString(localeStr, { hour: '2-digit', minute: '2-digit' })}
+                                    {formatSchoolTime(selectedSession.taken_at, localeStr, { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, BookOpen, Award } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 
 interface Grade {
     id: number;
@@ -128,7 +129,7 @@ export default function ParentChildDiaryPage() {
                                         <div className="flex items-center gap-2">
                                             <Calendar className="w-4 h-4" />
                                             <span>
-                                                {new Date(grade.graded_at).toLocaleDateString('ru-RU')}
+                                                {formatSchoolDate(grade.graded_at, 'ru-RU')}
                                             </span>
                                         </div>
                                     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Bell, Check, CheckCheck, Trash2, Clock, MessageCircle, FileText, FlaskConical, ChevronRight } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useRouter } from 'next/navigation';
 
@@ -62,7 +63,7 @@ function formatDate(dateString: string): string {
     if (minutes < 60) return `${minutes} мин. назад`;
     if (hours < 24) return `${hours} ч. назад`;
     if (days < 7) return `${days} дн. назад`;
-    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+    return formatSchoolDate(date, 'ru-RU', { day: 'numeric', month: 'short' });
 }
 
 export default function NotificationsPage() {

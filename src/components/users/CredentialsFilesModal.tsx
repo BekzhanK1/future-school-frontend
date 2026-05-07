@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Download, RefreshCcw, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 
 interface CredentialsFile {
     filename: string;
@@ -77,8 +78,13 @@ export default function CredentialsFilesModal({ isOpen, onClose }: Props) {
     };
 
     const formatDate = (iso: string) => {
-        const d = new Date(iso);
-        return d.toLocaleString();
+        return formatSchoolDateTime(iso, 'ru-RU', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
     };
 
     const formatSize = (bytes: number) => {

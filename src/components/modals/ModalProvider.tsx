@@ -12,6 +12,7 @@ import ConfirmationModal from './ConfirmationModal';
 import FileUploadModal from './FileUploadModal';
 import AddStudentModal from './AddStudentModal';
 import AddFileToDirectoryModal from './AddFileToDirectoryModal';
+import AssignmentEditModal from './AssignmentEditModal';
 import type {
     ModalState,
     EventModalData,
@@ -24,6 +25,7 @@ import type {
     FileUploadModalData,
     AddStudentModalData,
     AddFileToDirectoryModalData,
+    AssignmentEditModalData,
 } from '@/lib/modalController';
 import EventsListModal from './EventsListModal';
 
@@ -199,6 +201,23 @@ export default function ModalProvider() {
                     onSuccess={
                         (modalState.data as AddFileToDirectoryModalData)
                             ?.onSuccess
+                    }
+                />
+            );
+        case 'assignment-edit':
+            return (
+                <AssignmentEditModal
+                    isOpen={modalState.isOpen}
+                    onClose={() => modalController.close()}
+                    assignmentId={
+                        (modalState.data as AssignmentEditModalData)
+                            ?.assignmentId ?? 0
+                    }
+                    userId={
+                        (modalState.data as AssignmentEditModalData)?.userId ?? 0
+                    }
+                    onSaved={
+                        (modalState.data as AssignmentEditModalData)?.onSaved
                     }
                 />
             );

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import AddManualGradeModal from './_components/AddManualGradeModal';
 import GradeCategoriesManager from './_components/GradeCategoriesManager';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 
 interface Classroom { id: number; grade: number; letter: string; school?: number; }
 interface SubjectGroup { id: number; course_name: string; course_code: string; classroom_display?: string; teacher_fullname?: string; }
@@ -414,11 +415,11 @@ export default function DiaryPage() {
                                             {/* Work columns */}
                                             {gradeBookWorks.map((work, wi) => (
                                                 <th key={work.key} className="border border-gray-300 py-1 px-1 font-semibold text-gray-700 text-center w-16 align-bottom"
-                                                    title={`${work.title} — ${work.graded_at ? new Date(work.graded_at).toLocaleDateString('ru-RU') : ''}`}>
+                                                    title={`${work.title} — ${work.graded_at ? formatSchoolDate(work.graded_at, 'ru-RU') : ''}`}>
                                                     <div className="flex flex-col items-center gap-0.5">
                                                         <span className="text-[9px] text-gray-400">{SOURCE_ABBR[work.source_type]}{wi + 1}</span>
                                                         <span className="truncate text-[10px] max-w-[56px]" title={work.title}>{work.title.length > 8 ? work.title.slice(0, 8) + '…' : work.title}</span>
-                                                        {work.graded_at && <span className="text-[9px] text-gray-400">{new Date(work.graded_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</span>}
+                                                        {work.graded_at && <span className="text-[9px] text-gray-400">{formatSchoolDate(work.graded_at, 'ru-RU', { day: '2-digit', month: '2-digit' })}</span>}
                                                     </div>
                                                 </th>
                                             ))}
@@ -557,7 +558,7 @@ export default function DiaryPage() {
                                                 <tr key={`${entry.source_type}-${entry.source_id}-${entry.student_id}-${idx}`}
                                                     style={{ background: idx % 2 === 0 ? '#ffffff' : '#fafafa' }}>
                                                     <td className="border border-gray-200 py-1.5 px-3 text-gray-500 whitespace-nowrap">
-                                                        {entry.graded_at ? new Date(entry.graded_at).toLocaleDateString('ru-RU') : '—'}
+                                                        {entry.graded_at ? formatSchoolDate(entry.graded_at, 'ru-RU') : '—'}
                                                     </td>
                                                     <td className="border border-gray-200 py-1.5 px-3">
                                                         <div className="flex items-center gap-1.5">

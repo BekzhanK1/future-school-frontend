@@ -35,13 +35,14 @@ export function isAttachmentValid(attachment: AssignmentAttachment): boolean {
         return false;
     }
 
-    if (attachment.type === 'file') {
-        return !!attachment.file;
-    }
+    return !!(attachment.file || attachment.existingFileUrl?.trim());
+}
 
-    if (attachment.type === 'link') {
-        return !!attachment.file_url?.trim();
-    }
-
-    return false;
+export function makeEmptyAssignmentAttachment(clientKey?: string): AssignmentAttachment {
+    return {
+        clientKey: clientKey ?? globalThis.crypto?.randomUUID?.() ?? `att-${Date.now()}-${Math.random()}`,
+        type: 'file',
+        title: '',
+        file: null,
+    };
 }

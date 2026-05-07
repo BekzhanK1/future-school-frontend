@@ -18,6 +18,7 @@ import axiosInstance from '@/lib/axios';
 import { getMediaUrl } from '@/lib/mediaUrl';
 import { useUserState } from '@/contexts/UserContext';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 import { useSubject } from '../../layout';
 import ForumPostItem from '@/components/ForumPostItem';
 
@@ -209,8 +210,7 @@ export default function SubjectQADetailPage() {
     };
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-GB', {
+        return formatSchoolDateTime(dateString, 'en-GB', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

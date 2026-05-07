@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Modal from '@/components/ui/Modal';
 import type { EventModalData } from '@/lib/modalController';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 import {
     Clock,
     MapPin,
@@ -67,7 +68,7 @@ export default function EventModal({ event, isOpen, onClose }: EventModalProps) 
 
     const formattedDate = (() => {
         try {
-            return new Date(event.start).toLocaleDateString(localeCode, {
+            return formatSchoolDate(event.start, localeCode, {
                 weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
             });
         } catch { return event.start; }

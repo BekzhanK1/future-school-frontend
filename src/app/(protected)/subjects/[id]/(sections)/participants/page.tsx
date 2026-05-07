@@ -5,6 +5,7 @@ import { Search, Clock, Users, UserCheck, GraduationCap } from 'lucide-react';
 import axiosInstance from '@/lib/axios';
 import { useLocale } from '@/contexts/LocaleContext';
 import { useSubject } from '../../layout';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 
 interface Member {
     id: number;
@@ -75,7 +76,7 @@ export default function ParticipantsPage() {
         if (minutes < 60) return t('participantsPage.lastLoginMinutesAgo', { minutes });
         if (hours < 24) return t('participantsPage.lastLoginHoursAgo', { hours });
         if (days < 7) return t('participantsPage.lastLoginDaysAgo', { days });
-        return date.toLocaleDateString('ru-RU', { year: 'numeric', month: 'short', day: 'numeric' });
+        return formatSchoolDate(lastLogin, 'ru-RU', { year: 'numeric', month: 'short', day: 'numeric' });
     };
 
     const allMembers: Member[] = [

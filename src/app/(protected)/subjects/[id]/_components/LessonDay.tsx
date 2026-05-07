@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useContext } from 'react';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 import { SubjectContext } from '../layout';
 import { useParams } from 'next/navigation';
 
@@ -82,7 +83,7 @@ export default function LessonDay({ data }: { data: any }) {
                 <div className="text-gray-900 text-xl font-inter font-semibold">
                     Урок -{' '}
                     {data.taken_at
-                        ? new Date(data.taken_at).toLocaleDateString('ru-RU', {
+                        ? formatSchoolDate(data.taken_at, 'ru-RU', {
                               day: 'numeric',
                               month: 'long',
                           })

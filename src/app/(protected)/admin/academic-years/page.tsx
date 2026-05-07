@@ -7,6 +7,7 @@ import { useUserState } from '@/contexts/UserContext';
 import axiosInstance from '@/lib/axios';
 import Modal from '@/components/ui/Modal';
 import DatePicker from 'react-datepicker';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 import 'react-datepicker/dist/react-datepicker.css';
 
 interface Quarter {
@@ -209,7 +210,7 @@ export default function AcademicYearsPage() {
                                             )}
                                         </div>
                                         <p className="text-sm text-gray-600">
-                                            {new Date(year.start_date).toLocaleDateString('ru-RU')} - {new Date(year.end_date).toLocaleDateString('ru-RU')}
+                                            {formatSchoolDate(year.start_date, 'ru-RU')} - {formatSchoolDate(year.end_date, 'ru-RU')}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -248,7 +249,7 @@ export default function AcademicYearsPage() {
                                         {year.quarters && year.quarters.length > 0 ? (
                                             year.quarters.map(q => (
                                                 <div key={q.id}>
-                                                    {q.quarter_index}-я: {new Date(q.start_date).toLocaleDateString('ru-RU')} - {new Date(q.end_date).toLocaleDateString('ru-RU')}
+                                                    {q.quarter_index}-я: {formatSchoolDate(q.start_date, 'ru-RU')} - {formatSchoolDate(q.end_date, 'ru-RU')}
                                                 </div>
                                             ))
                                         ) : (
@@ -270,17 +271,17 @@ export default function AcademicYearsPage() {
                                     <div className="space-y-1 text-sm text-gray-600">
                                         {year.autumn_holiday_start && year.autumn_holiday_end && (
                                             <div>
-                                                Осенние: {new Date(year.autumn_holiday_start).toLocaleDateString('ru-RU')} - {new Date(year.autumn_holiday_end).toLocaleDateString('ru-RU')}
+                                                Осенние: {formatSchoolDate(year.autumn_holiday_start, 'ru-RU')} - {formatSchoolDate(year.autumn_holiday_end, 'ru-RU')}
                                             </div>
                                         )}
                                         {year.winter_holiday_start && year.winter_holiday_end && (
                                             <div>
-                                                Зимние: {new Date(year.winter_holiday_start).toLocaleDateString('ru-RU')} - {new Date(year.winter_holiday_end).toLocaleDateString('ru-RU')}
+                                                Зимние: {formatSchoolDate(year.winter_holiday_start, 'ru-RU')} - {formatSchoolDate(year.winter_holiday_end, 'ru-RU')}
                                             </div>
                                         )}
                                         {year.spring_holiday_start && year.spring_holiday_end && (
                                             <div>
-                                                Весенние: {new Date(year.spring_holiday_start).toLocaleDateString('ru-RU')} - {new Date(year.spring_holiday_end).toLocaleDateString('ru-RU')}
+                                                Весенние: {formatSchoolDate(year.spring_holiday_start, 'ru-RU')} - {formatSchoolDate(year.spring_holiday_end, 'ru-RU')}
                                             </div>
                                         )}
                                         {!year.autumn_holiday_start && !year.winter_holiday_start && !year.spring_holiday_start && (

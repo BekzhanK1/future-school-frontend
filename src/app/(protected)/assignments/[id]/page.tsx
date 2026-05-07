@@ -30,7 +30,6 @@ export default function AssignmentPage() {
     const { user } = useUserState();
     const { t } = useLocale();
 
-    // Helper function to download a file
     const downloadFile = async (fileUrl: string, filename: string) => {
         try {
             const response = await fetch(fileUrl);
@@ -43,8 +42,8 @@ export default function AssignmentPage() {
             link.click();
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Download failed:', error);
+        } catch (err) {
+            console.error('Download failed:', err);
             window.open(fileUrl, '_blank');
         }
     };
@@ -56,11 +55,11 @@ export default function AssignmentPage() {
                 `/assignments/${assignmentId}/`
             );
             setAssignment(response.data);
-        } catch (error) {
-            console.error('Error fetching assignment:', error);
+        } catch (err) {
+            console.error('Error fetching assignment:', err);
             const errorMessage =
-                error instanceof AxiosError
-                    ? error.response?.data?.message || error.message
+                err instanceof AxiosError
+                    ? err.response?.data?.message || err.message
                     : 'Failed to fetch assignment';
             setError(errorMessage);
         } finally {
@@ -92,11 +91,11 @@ export default function AssignmentPage() {
 
             setSelectedFile(null);
             await fetchAssignment();
-        } catch (error) {
-            console.error('Error submitting assignment:', error);
+        } catch (err) {
+            console.error('Error submitting assignment:', err);
             const errorMessage =
-                error instanceof AxiosError
-                    ? error.response?.data?.message || error.message
+                err instanceof AxiosError
+                    ? err.response?.data?.message || err.message
                     : 'Failed to submit assignment';
             setError(errorMessage);
         } finally {
@@ -115,16 +114,11 @@ export default function AssignmentPage() {
 
     if (loading) {
         return (
-            <div className="mx-auto px-4 py-8">
-                <div className="animate-pulse">
-                    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                        <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-                        <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-sm p-6">
-                        <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                    </div>
+            <div className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+                <div className="animate-pulse space-y-6">
+                    <div className="h-40 rounded-2xl bg-gray-200/80" />
+                    <div className="h-32 rounded-2xl bg-gray-200/60" />
+                    <div className="h-48 rounded-2xl bg-gray-200/50" />
                 </div>
             </div>
         );
@@ -132,13 +126,16 @@ export default function AssignmentPage() {
 
     if (error || !assignment) {
         return (
-            <div className="mx-auto px-4 py-8">
-                <div className="bg-white rounded-lg shadow-sm p-6 text-center">
-                    <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <div className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+                <div
+                    className="rounded-2xl border border-red-100 bg-white p-8 text-center shadow-sm"
+                    role="alert"
+                >
+                    <XCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+                    <h2 className="text-xl font-semibold text-gray-900">
                         {t('assignmentPage.loadingError')}
                     </h2>
-                    <p className="text-gray-600">
+                    <p className="mt-2 text-gray-600">
                         {error || t('assignmentPage.assignmentNotFound')}
                     </p>
                 </div>
@@ -147,37 +144,37 @@ export default function AssignmentPage() {
     }
 
     return (
-        <div className="mx-auto px-4 py-8">
-            <div className="space-y-6">
-                {/* Assignment Meta Information */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                    <AssignmentHeader
-                        assignment={assignment}
-                        userRole={user?.role}
-                        onSubmit={handleSubmit}
-                        isSubmitting={submitting}
-                        hasSelectedFile={!!selectedFile}
-                    />
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+            <div className="space-y-8">
+                <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ring-1 ring-black/[0.03]">
+                    <div className="p-6 sm:p-8">
+                        <AssignmentHeader
+                            assignment={assignment}
+                            userRole={user?.role}
+                        />
+                        <AssignmentMetadata assignment={assignment} />
+                    </div>
+                    <div className="border-t border-gray-100 px-6 py-6 sm:px-8">
+                        <AssignmentAttachmentsList
+                            attachments={assignment.attachments}
+                            file={assignment.file}
+                            onFileView={handleFileView}
+                        />
+                    </div>
+                </article>
 
-                    <AssignmentMetadata assignment={assignment} />
-
-                    <AssignmentAttachmentsList
-                        attachments={assignment.attachments}
-                        file={assignment.file}
-                        onFileView={handleFileView}
-                    />
-                </div>
-
-                {/* File Upload Section - Only show for students if not submitted */}
                 {user?.role === 'student' && !assignment.is_submitted && (
                     <StudentFileUpload
                         selectedFile={selectedFile}
-                        onFileSelect={handleOpenUploadModal}
+                        onOpenPicker={handleOpenUploadModal}
+                        onFileSelected={setSelectedFile}
                         onFileRemove={() => setSelectedFile(null)}
+                        onSubmit={handleSubmit}
+                        isSubmitting={submitting}
+                        deadlinePassed={assignment.is_deadline_passed}
                     />
                 )}
 
-                {/* Submitted Work - Only show for students if submitted */}
                 {user?.role === 'student' &&
                     assignment.is_submitted &&
                     assignment.student_submission && (
@@ -189,14 +186,20 @@ export default function AssignmentPage() {
                         />
                     )}
 
-                {/* Student Submissions - Only show for teachers */}
-                {user?.role === 'teacher' && assignment.all_submissions && (
-                    <SubmissionsTable
-                        submissions={assignment.all_submissions}
-                        maxGrade={assignment.max_grade}
-                        onGradeUpdate={fetchAssignment}
-                    />
-                )}
+                {user?.role === 'teacher' &&
+                    assignment.all_submissions != null && (
+                        <section
+                            id="assignment-submissions"
+                            tabIndex={-1}
+                            className="scroll-mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm ring-1 ring-black/[0.03]"
+                        >
+                            <SubmissionsTable
+                                submissions={assignment.all_submissions}
+                                maxGrade={assignment.max_grade}
+                                onGradeUpdate={fetchAssignment}
+                            />
+                        </section>
+                    )}
             </div>
         </div>
     );

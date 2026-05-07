@@ -4,6 +4,7 @@ import Modal from '@/components/ui/Modal';
 import type { EventsListModalData, EventModalData } from '@/lib/modalController';
 import { modalController } from '@/lib/modalController';
 import { useLocale } from '@/contexts/LocaleContext';
+import { formatSchoolDate } from '@/lib/formatSchoolDateTime';
 import { Clock, MapPin, User, GraduationCap, ArrowRight, X, CalendarDays } from 'lucide-react';
 
 interface EventsListModalProps {
@@ -35,7 +36,7 @@ export default function EventsListModal({ data, isOpen, onClose }: EventsListMod
 
     const formattedDate = (() => {
         try {
-            return new Date(data.date).toLocaleDateString(localeCode, {
+            return formatSchoolDate(data.date, localeCode, {
                 weekday: 'long', day: 'numeric', month: 'long',
             });
         } catch { return data.date; }

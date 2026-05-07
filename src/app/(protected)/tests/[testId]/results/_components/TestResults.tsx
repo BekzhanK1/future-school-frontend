@@ -1,5 +1,6 @@
 'use client';
 import axiosInstance from '@/lib/axios';
+import { formatSchoolDateTime } from '@/lib/formatSchoolDateTime';
 import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
@@ -211,8 +212,10 @@ export default function TestResults({ attemptId }: TestResultsProps) {
                     </p>
                     <p>
                         Завершен:{' '}
-                        {new Date(attemptData.submitted_at).toLocaleString(
-                            'ru-RU'
+                        {formatSchoolDateTime(
+                            attemptData.submitted_at,
+                            'ru-RU',
+                            { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
                         )}
                     </p>
                 </div>
